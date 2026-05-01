@@ -1,229 +1,605 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>S/Nバーコード読み取りテスト</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<style>
-:root{--bg:#f5f7fb;--card:#fff;--text:#162033;--muted:#68758a;--border:#d9e0ea;--accent:#1f6feb;--ok:#047857;--warn:#b54708;--danger:#b42318;--dark:#344054}
-*{box-sizing:border-box}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","BIZ UDPGothic","Yu Gothic",sans-serif;background:var(--bg);color:var(--text);padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom)}
-.wrap{max-width:820px;margin:0 auto;padding:14px 0 28px}
-.badge{display:inline-flex;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:var(--card);color:var(--muted);font-size:13px;margin-bottom:10px}
-h1{font-size:25px;line-height:1.25;margin:4px 0 8px;letter-spacing:-.02em}
-p{color:var(--muted);margin:0 0 14px;line-height:1.55}
-.card{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:0 8px 30px rgba(20,40,80,.07);padding:14px;margin:12px 0;overflow:hidden}
-#reader{width:100%;min-height:300px;border-radius:16px;overflow:hidden;background:#0b1220}
-.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-button{appearance:none;border:0;border-radius:16px;padding:14px 12px;font-size:16px;font-weight:800;color:#fff;background:var(--accent)}
-button.secondary{background:var(--dark)}button.danger{background:var(--danger)}button.light{background:#eef3fb;color:var(--text);border:1px solid var(--border)}button:disabled{opacity:.45}
-input,select{width:100%;border:1px solid var(--border);border-radius:16px;padding:13px 12px;font-size:16px;margin-bottom:10px;background:#fff}
-textarea{width:100%;min-height:120px;border:1px solid var(--border);border-radius:16px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;resize:vertical}
-.label{font-size:13px;color:var(--muted);margin:2px 0 8px;font-weight:800}
-.row{display:flex;justify-content:space-between;gap:10px;align-items:center}
-.status{font-weight:900;padding:7px 10px;border-radius:999px;background:#eef3fb;font-size:13px;color:#344054;white-space:nowrap}
-.status.ok{color:var(--ok);background:#ecfdf3}.status.warn{color:var(--warn);background:#fffaeb}.status.danger{color:var(--danger);background:#fff1f3}
-.latest{min-height:76px;padding:14px;border:1px solid var(--border);border-radius:16px;background:#f8fafc;word-break:break-all;font-size:22px;font-weight:900;display:flex;align-items:center}
-.empty{color:#98a2b3;font-size:15px;font-weight:700}
-.hint{font-size:13px;line-height:1.55;color:var(--muted);background:#f8fafc;border:1px dashed var(--border);border-radius:16px;padding:12px;margin-top:10px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.metric{border:1px solid var(--border);background:#f8fafc;border-radius:16px;padding:12px}.metric .num{font-size:22px;font-weight:900}.metric .cap{font-size:12px;color:var(--muted);font-weight:800}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid var(--border);padding:10px 8px;vertical-align:top;text-align:left}th{color:var(--muted);background:#f8fafc}.code{word-break:break-all;font-weight:900}
-.notice{padding:10px 12px;border-radius:16px;background:#f8fafc;border:1px solid var(--border);font-size:14px;line-height:1.5}
-.oktext{color:var(--ok);font-weight:900}.warntext{color:var(--warn);font-weight:900}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>パーツバーコードリーダー</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #667085;
+      --line: #d9e0ea;
+      --blue: #2563eb;
+      --dark: #111827;
+      --ok: #0f766e;
+      --warn: #b45309;
+      --danger: #b91c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "BIZ UDPGothic", "BIZ UDPゴシック", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      width: min(960px, 100%);
+      margin: 0 auto;
+      padding: 20px 16px 36px;
+    }
+
+    h1 {
+      margin: 14px 0 8px;
+      font-size: 30px;
+      line-height: 1.25;
+      letter-spacing: -0.03em;
+    }
+
+    .lead {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+      margin-bottom: 16px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 720px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      color: #475467;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    select,
+    button,
+    input {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 10px 14px;
+      font-size: 16px;
+      background: #fff;
+    }
+
+    button {
+      border: 0;
+      background: var(--dark);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #e8eef7;
+      color: var(--dark);
+    }
+
+    button.danger {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 720px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .cameraBox {
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      background: #000;
+      border: 1px solid var(--line);
+      margin-top: 14px;
+      min-height: 280px;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      height: min(62vh, 560px);
+      object-fit: cover;
+      background: #000;
+    }
+
+    .scanFrame {
+      position: absolute;
+      left: 7%;
+      right: 7%;
+      top: 35%;
+      height: 24%;
+      border: 5px solid rgba(255, 255, 255, 0.92);
+      border-radius: 10px;
+      pointer-events: none;
+      box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.18);
+    }
+
+    .scanLine {
+      position: absolute;
+      left: 9%;
+      right: 9%;
+      top: 47%;
+      border-top: 3px solid rgba(37, 99, 235, 0.9);
+      pointer-events: none;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 800;
+      font-size: 14px;
+      background: #fff7ed;
+      color: var(--warn);
+      margin-top: 8px;
+    }
+
+    .status.ok {
+      background: #ecfdf5;
+      color: var(--ok);
+    }
+
+    .status.bad {
+      background: #fef2f2;
+      color: var(--danger);
+    }
+
+    .resultMain {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 720px) {
+      .resultMain {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .resultBox {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: #fbfdff;
+    }
+
+    .resultBox .title {
+      color: #667085;
+      font-weight: 800;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .resultBox .value {
+      font-size: 22px;
+      font-weight: 900;
+      word-break: break-all;
+    }
+
+    .none {
+      color: #98a2b3;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 14px;
+      margin-top: 10px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
+    th {
+      color: #475467;
+      background: #f8fafc;
+      font-size: 13px;
+    }
+
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 800;
+      background: #e8eef7;
+      color: #344054;
+      white-space: nowrap;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      margin-top: 10px;
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
 </head>
+
 <body>
-<main class="wrap">
-  <div class="badge">S/N読み取りテスト専用 / P/N不要 / 送信なし</div>
-  <h1>S/Nバーコード読み取りテスト</h1>
-  <p>まずはS/Nバーコードがスマホカメラで読めるかだけを確認します。P/N切替、在庫集計、除外判定は入れていません。</p>
+  <main class="wrap">
+    <h1>パーツバーコードリーダー</h1>
+    <p class="lead">
+      読めるバーコードを自動で拾って一覧表示します。S/N候補とP/N候補は読み取り結果から自動判定します。
+    </p>
 
-  <section class="card">
-    <div class="row"><div class="label">カメラ読み取り</div><div id="status" class="status">停止中</div></div>
-    <div class="grid2">
-      <div>
-        <div class="label">読み取り形式</div>
-        <select id="formatMode">
-          <option value="code128" selected>CODE128のみ</option>
-          <option value="code39">CODE39のみ</option>
-          <option value="all">全形式</option>
-          <option value="qr">QR/DataMatrixのみ</option>
-        </select>
+    <section class="card">
+      <div class="row">
+        <div>
+          <label for="mode">読み取り動作</label>
+          <select id="mode">
+            <option value="continuous" selected>連続読み取り</option>
+            <option value="once">1件読んだら停止</option>
+          </select>
+        </div>
+        <div>
+          <label for="cameraSelect">カメラ</label>
+          <select id="cameraSelect">
+            <option value="">背面カメラを自動選択</option>
+          </select>
+        </div>
       </div>
-      <div>
-        <div class="label">読み取り動作</div>
-        <select id="scanMode">
-          <option value="continuous" selected>連続読み取り</option>
-          <option value="pause">1件読んだら停止</option>
-        </select>
+
+      <div class="controls">
+        <button id="startBtn">読み取り開始</button>
+        <button id="stopBtn" class="secondary" disabled>停止</button>
       </div>
-    </div>
-    <div id="reader"></div>
-    <div class="btns"><button id="startBtn">読み取り開始</button><button id="stopBtn" class="secondary" disabled>停止</button></div>
-    <div class="hint">S/N欄のバーコードだけを画面中央に入れてください。まずはCODE128のみで試します。</div>
-  </section>
 
-  <section class="card">
-    <div class="label">最新読み取り結果</div>
-    <div id="latest" class="latest"><span class="empty">未読み取り</span></div>
-    <div class="grid2" style="margin-top:10px">
-      <div class="metric"><div id="totalCount" class="num">0</div><div class="cap">読み取り件数</div></div>
-      <div class="metric"><div id="uniqueCount" class="num">0</div><div class="cap">ユニーク件数</div></div>
-    </div>
-    <div id="notice" class="notice" style="margin-top:10px">状態：待機中</div>
-  </section>
+      <div id="status" class="status">待機中</div>
 
-  <section class="card">
-    <div class="label">手入力テスト</div>
-    <input id="manualSN" placeholder="読めない場合はS/Nを手入力して追加">
-    <button id="addManualBtn" class="secondary">手入力を履歴に追加</button>
-  </section>
+      <div class="cameraBox">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="scanFrame"></div>
+        <div class="scanLine"></div>
+      </div>
 
-  <section class="card">
-    <div class="row"><div class="label">読み取り履歴</div><button id="copyCsvBtn" class="light" style="width:auto;padding:10px 12px">CSVコピー</button></div>
-    <table><thead><tr><th>No</th><th>時刻</th><th>読み取り値</th><th>形式</th><th>桁数</th><th>判定</th></tr></thead><tbody id="historyBody"><tr><td colspan="6" class="empty">履歴なし</td></tr></tbody></table>
-    <div class="btns"><button id="copyLatestBtn" class="light">最新値コピー</button><button id="clearBtn" class="danger">全クリア</button></div>
-  </section>
+      <p class="hint">
+        コツ：ラベル全体ではなく、バーコードが白枠に大きく入る距離にしてください。複数ある場合は読めた順に下の一覧へ追加します。
+      </p>
+    </section>
 
-  <section class="card">
-    <div class="label">CSV出力プレビュー</div>
-    <textarea id="csvText" readonly placeholder="CSVコピー時にここへ表示されます"></textarea>
-  </section>
-</main>
+    <section class="card">
+      <div class="resultMain">
+        <div class="resultBox">
+          <div class="title">S/N候補</div>
+          <div id="snValue" class="value none">なし</div>
+        </div>
+        <div class="resultBox">
+          <div class="title">P/N候補</div>
+          <div id="pnValue" class="value none">なし</div>
+        </div>
+      </div>
 
-<script>
-let scanner = null;
-let rows = [];
-let latest = "";
+      <div class="controls">
+        <button id="copyBtn" class="secondary">S/Nをコピー</button>
+        <button id="clearBtn" class="danger">結果クリア</button>
+      </div>
 
-const $ = id => document.getElementById(id);
-const statusEl = $("status"), latestEl = $("latest"), totalCountEl = $("totalCount"), uniqueCountEl = $("uniqueCount"), noticeEl = $("notice"), historyBody = $("historyBody"), csvText = $("csvText"), startBtn = $("startBtn"), stopBtn = $("stopBtn"), formatMode = $("formatMode"), scanMode = $("scanMode"), manualSN = $("manualSN");
+      <p id="countText" class="hint">読み取り件数：0</p>
 
-function setStatus(text, cls=""){ statusEl.textContent = text; statusEl.className = "status " + cls; }
+      <table>
+        <thead>
+          <tr>
+            <th style="width:52px;">No</th>
+            <th>値</th>
+            <th style="width:110px;">判定</th>
+            <th style="width:120px;">形式</th>
+          </tr>
+        </thead>
+        <tbody id="resultBody">
+          <tr>
+            <td colspan="4" class="small">まだ読み取り結果はありません。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
 
-function getFormats(){
-  const F = Html5QrcodeSupportedFormats;
-  const mode = formatMode.value;
-  if(mode === "code128") return [F.CODE_128];
-  if(mode === "code39") return [F.CODE_39];
-  if(mode === "qr") return [F.QR_CODE, F.DATA_MATRIX];
-  return [F.CODE_128, F.CODE_39, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.QR_CODE, F.DATA_MATRIX];
-}
+  <script>
+    const video = document.getElementById("video");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const copyBtn = document.getElementById("copyBtn");
+    const statusEl = document.getElementById("status");
+    const resultBody = document.getElementById("resultBody");
+    const countText = document.getElementById("countText");
+    const snValue = document.getElementById("snValue");
+    const pnValue = document.getElementById("pnValue");
+    const modeEl = document.getElementById("mode");
+    const cameraSelect = document.getElementById("cameraSelect");
 
-function normalizeValue(v){ return String(v || "").trim().toUpperCase(); }
+    let stream = null;
+    let detector = null;
+    let timerId = null;
+    let results = [];
 
-function judgeValue(v){
-  if(!v) return "空白";
-  if(v.length < 4) return "短い";
-  if(/^[0-9]+$/.test(v)) return "数字のみ";
-  if(/^[A-Z]{2}$/.test(v)) return "2文字";
-  if(/^[0-9]{3,6}-[0-9]{3,8}$/.test(v)) return "P/Nっぽい";
-  return "候補";
-}
+    const supportedFormats = [
+      "code_128",
+      "code_39",
+      "code_93",
+      "codabar",
+      "ean_13",
+      "ean_8",
+      "itf",
+      "upc_a",
+      "upc_e",
+      "qr_code",
+      "data_matrix",
+      "pdf417",
+      "aztec"
+    ];
 
-function addValue(raw, format){
-  const value = normalizeValue(raw);
-  if(!value) return;
-  const duplicate = rows.some(r => r.value === value);
-  latest = value;
-  rows.unshift({
-    time: new Date().toLocaleString("ja-JP"),
-    value,
-    format: String(format || "unknown"),
-    len: value.length,
-    judge: duplicate ? "重複" : judgeValue(value)
-  });
-  latestEl.textContent = value;
-  noticeEl.innerHTML = duplicate ? `<span class="warntext">重複候補：</span>${esc(value)}` : `<span class="oktext">読み取り：</span>${esc(value)}`;
-  render();
-  if(scanMode.value === "pause") stopScan();
-}
+    function setStatus(text, type = "") {
+      statusEl.textContent = text;
+      statusEl.className = "status" + (type ? " " + type : "");
+    }
 
-function onDecoded(decodedText, decodedResult){
-  const fmt = decodedResult?.result?.format?.formatName || decodedResult?.result?.format || "unknown";
-  addValue(decodedText, fmt);
-}
+    function normalizeValue(value) {
+      return String(value || "").trim();
+    }
 
-async function startScan(){
-  try{
-    setStatus("起動中", "warn");
-    startBtn.disabled = true;
-    stopBtn.disabled = false;
-    if(!scanner) scanner = new Html5Qrcode("reader");
-    const config = {
-      fps: 12,
-      qrbox: function(w,h){
-        const minEdge = Math.min(w,h);
-        return { width: Math.floor(minEdge * 0.92), height: Math.floor(minEdge * 0.26) };
-      },
-      rememberLastUsedCamera: true,
-      formatsToSupport: getFormats()
-    };
-    await scanner.start({ facingMode: "environment" }, config, onDecoded, _ => {});
-    setStatus("読み取り中", "warn");
-    noticeEl.textContent = "状態：S/Nバーコードを中央に入れてください";
-  }catch(e){
-    console.error(e);
-    setStatus("エラー", "danger");
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
-    alert("カメラ起動に失敗しました。HTTPS、カメラ許可、Safari/Chrome設定を確認してください。");
-  }
-}
+    function classify(value) {
+      const v = normalizeValue(value);
 
-async function stopScan(){
-  try{ if(scanner && scanner.isScanning) await scanner.stop(); }catch(e){ console.warn(e); }
-  setStatus("停止中");
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-}
+      if (/^[0-9]{4}-[0-9]{5}$/.test(v)) {
+        return "P/N";
+      }
 
-function render(){
-  totalCountEl.textContent = rows.length;
-  uniqueCountEl.textContent = new Set(rows.map(r => r.value)).size;
-  if(!rows.length){
-    historyBody.innerHTML = '<tr><td colspan="6" class="empty">履歴なし</td></tr>';
-    csvText.value = "";
-    return;
-  }
-  historyBody.innerHTML = rows.map((r, i) => `
-    <tr><td>${rows.length - i}</td><td>${esc(r.time)}</td><td class="code">${esc(r.value)}</td><td>${esc(r.format)}</td><td>${r.len}</td><td>${esc(r.judge)}</td></tr>
-  `).join("");
-}
+      if (/^[A-Za-z0-9]+-[A-Za-z0-9]+$/.test(v) && !/^[0-9]{4}-[0-9]{5}$/.test(v)) {
+        return "S/N";
+      }
 
-function makeCsv(){
-  const header = ["No","時刻","読み取り値","形式","桁数","判定"].join(",");
-  const body = rows.slice().reverse().map((r, i) => [i + 1, csv(r.time), csv(r.value), csv(r.format), r.len, csv(r.judge)].join(","));
-  return [header, ...body].join("\n");
-}
+      if (/^[0-9]+$/.test(v)) {
+        return "数量/数値";
+      }
 
-function csv(v){ v = String(v ?? ""); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
-function esc(s){ return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+      return "不明";
+    }
 
-async function copyText(text){
-  csvText.value = text;
-  try{ await navigator.clipboard.writeText(text); setStatus("コピー済み", "ok"); }
-  catch(e){ csvText.select(); document.execCommand("copy"); }
-}
+    function addResult(value, format) {
+      const v = normalizeValue(value);
+      if (!v) return;
 
-startBtn.addEventListener("click", startScan);
-stopBtn.addEventListener("click", stopScan);
-$("addManualBtn").addEventListener("click", () => { addValue(manualSN.value, "manual"); manualSN.value = ""; });
-$("copyCsvBtn").addEventListener("click", () => copyText(makeCsv()));
-$("copyLatestBtn").addEventListener("click", () => copyText(latest));
-$("clearBtn").addEventListener("click", () => {
-  if(confirm("読み取り履歴を全て消しますか？")){
-    rows = [];
-    latest = "";
-    latestEl.innerHTML = '<span class="empty">未読み取り</span>';
-    noticeEl.textContent = "状態：待機中";
-    render();
-  }
-});
-formatMode.addEventListener("change", async () => { if(scanner && scanner.isScanning) await stopScan(); });
-render();
-</script>
+      const exists = results.some(x => x.value === v);
+      if (exists) return;
+
+      results.push({
+        value: v,
+        format: format || "",
+        kind: classify(v),
+        time: new Date()
+      });
+
+      renderResults();
+
+      if (modeEl.value === "once") {
+        stopScan();
+      }
+    }
+
+    function renderResults() {
+      countText.textContent = "読み取り件数：" + results.length;
+
+      const sn = results.find(x => x.kind === "S/N");
+      const pn = results.find(x => x.kind === "P/N");
+
+      snValue.textContent = sn ? sn.value : "なし";
+      snValue.className = "value" + (sn ? "" : " none");
+
+      pnValue.textContent = pn ? pn.value : "なし";
+      pnValue.className = "value" + (pn ? "" : " none");
+
+      if (results.length === 0) {
+        resultBody.innerHTML = '<tr><td colspan="4" class="small">まだ読み取り結果はありません。</td></tr>';
+        return;
+      }
+
+      resultBody.innerHTML = results.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td><strong>${escapeHtml(r.value)}</strong></td>
+          <td><span class="pill">${escapeHtml(r.kind)}</span></td>
+          <td>${escapeHtml(r.format)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function loadCameras() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(d => d.kind === "videoinput");
+
+        cameraSelect.innerHTML = '<option value="">背面カメラを自動選択</option>';
+
+        cameras.forEach((cam, idx) => {
+          const opt = document.createElement("option");
+          opt.value = cam.deviceId;
+          opt.textContent = cam.label || `カメラ ${idx + 1}`;
+          cameraSelect.appendChild(opt);
+        });
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    async function startScan() {
+      try {
+        if (!("BarcodeDetector" in window)) {
+          setStatus("このブラウザはBarcodeDetector非対応です。Chrome/Androidか対応ブラウザで確認してください。", "bad");
+          return;
+        }
+
+        const formats = await BarcodeDetector.getSupportedFormats();
+        const useFormats = supportedFormats.filter(f => formats.includes(f));
+
+        if (useFormats.length === 0) {
+          setStatus("対応バーコード形式が見つかりません。", "bad");
+          return;
+        }
+
+        detector = new BarcodeDetector({ formats: useFormats });
+
+        const selectedCamera = cameraSelect.value;
+
+        const constraints = selectedCamera
+          ? { video: { deviceId: { exact: selectedCamera } }, audio: false }
+          : { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        await video.play();
+
+        await loadCameras();
+
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        setStatus("読み取り中", "ok");
+
+        timerId = setInterval(detectFrame, 350);
+      } catch (e) {
+        console.error(e);
+        setStatus("カメラ起動に失敗：" + (e.message || e), "bad");
+        stopScan();
+      }
+    }
+
+    async function detectFrame() {
+      if (!detector || !video || video.readyState < 2) return;
+
+      try {
+        const codes = await detector.detect(video);
+
+        if (!codes || codes.length === 0) return;
+
+        codes.forEach(code => {
+          addResult(code.rawValue, code.format);
+        });
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    function stopScan() {
+      if (timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+
+      video.srcObject = null;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+
+      if (statusEl.textContent === "読み取り中") {
+        setStatus("停止中");
+      }
+    }
+
+    clearBtn.addEventListener("click", () => {
+      results = [];
+      renderResults();
+      setStatus("結果をクリアしました");
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      const sn = results.find(x => x.kind === "S/N");
+
+      if (!sn) {
+        setStatus("コピーできるS/N候補がありません", "bad");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(sn.value);
+        setStatus("S/Nをコピーしました：" + sn.value, "ok");
+      } catch (e) {
+        setStatus("コピーに失敗しました：" + sn.value, "bad");
+      }
+    });
+
+    startBtn.addEventListener("click", startScan);
+    stopBtn.addEventListener("click", stopScan);
+
+    window.addEventListener("pagehide", stopScan);
+
+    renderResults();
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus("このブラウザはカメラ取得に対応していません。", "bad");
+    } else {
+      loadCameras();
+    }
+  </script>
 </body>
 </html>
