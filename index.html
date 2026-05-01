@@ -3,19 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>パーツバーコードリーダー</title>
+  <title>S/Nバーコード読み取り</title>
+
+  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+
   <style>
     :root {
       --bg: #f5f7fb;
       --card: #ffffff;
       --text: #111827;
-      --muted: #667085;
-      --line: #d9e0ea;
-      --blue: #2563eb;
-      --dark: #111827;
-      --ok: #0f766e;
-      --warn: #b45309;
+      --muted: #6b7280;
+      --primary: #111827;
+      --primaryText: #ffffff;
+      --border: #d9dee8;
       --danger: #b91c1c;
+      --success: #047857;
+      --soft: #eef2f7;
     }
 
     * {
@@ -24,446 +27,349 @@
 
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "BIZ UDPGothic", "BIZ UDPゴシック", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
     }
 
     .wrap {
-      width: min(960px, 100%);
+      max-width: 760px;
       margin: 0 auto;
-      padding: 20px 16px 36px;
-    }
-
-    h1 {
-      margin: 14px 0 8px;
-      font-size: 30px;
-      line-height: 1.25;
-      letter-spacing: -0.03em;
-    }
-
-    .lead {
-      margin: 0 0 18px;
-      color: var(--muted);
-      line-height: 1.7;
-      font-size: 16px;
+      padding: 18px;
     }
 
     .card {
       background: var(--card);
-      border: 1px solid var(--line);
+      border: 1px solid var(--border);
       border-radius: 22px;
       padding: 18px;
-      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
       margin-bottom: 16px;
     }
 
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+    h1 {
+      font-size: 22px;
+      margin: 0 0 6px;
     }
 
-    @media (max-width: 720px) {
-      .row {
-        grid-template-columns: 1fr;
-      }
+    .desc {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 16px;
     }
 
     label {
       display: block;
       font-weight: 700;
-      color: #475467;
-      margin-bottom: 8px;
-      font-size: 14px;
+      margin: 14px 0 8px;
+      font-size: 15px;
     }
 
     select,
-    button,
-    input {
+    input,
+    textarea {
       width: 100%;
-      min-height: 48px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 10px 14px;
       font-size: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 13px 14px;
       background: #fff;
+      color: var(--text);
     }
 
     button {
+      width: 100%;
       border: 0;
-      background: var(--dark);
-      color: white;
+      border-radius: 16px;
+      padding: 15px 14px;
+      font-size: 17px;
       font-weight: 800;
+      margin-top: 12px;
       cursor: pointer;
     }
 
-    button.secondary {
-      background: #e8eef7;
-      color: var(--dark);
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primaryText);
     }
 
-    button.danger {
+    .btn-soft {
+      background: var(--soft);
+      color: var(--text);
+    }
+
+    .btn-danger {
       background: #fee2e2;
       color: var(--danger);
     }
 
-    button:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-
-    .controls {
+    .row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 12px;
+      gap: 10px;
     }
 
-    @media (max-width: 720px) {
-      .controls {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .cameraBox {
+    .videoBox {
       position: relative;
-      overflow: hidden;
-      border-radius: 20px;
+      width: 100%;
       background: #000;
-      border: 1px solid var(--line);
-      margin-top: 14px;
-      min-height: 280px;
+      border-radius: 22px;
+      overflow: hidden;
+      min-height: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     video {
-      display: block;
       width: 100%;
-      height: min(62vh, 560px);
+      height: 100%;
+      min-height: 360px;
       object-fit: cover;
       background: #000;
     }
 
-    .scanFrame {
+    .scanGuide {
       position: absolute;
-      left: 7%;
-      right: 7%;
-      top: 35%;
-      height: 24%;
+      left: 12%;
+      right: 12%;
+      top: 40%;
+      height: 110px;
       border: 5px solid rgba(255, 255, 255, 0.92);
-      border-radius: 10px;
+      border-radius: 14px;
       pointer-events: none;
-      box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.18);
     }
 
     .scanLine {
       position: absolute;
-      left: 9%;
-      right: 9%;
-      top: 47%;
-      border-top: 3px solid rgba(37, 99, 235, 0.9);
+      left: 12%;
+      right: 12%;
+      top: calc(40% + 55px);
+      height: 3px;
+      background: #2563eb;
       pointer-events: none;
     }
 
     .status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-weight: 800;
-      font-size: 14px;
-      background: #fff7ed;
-      color: var(--warn);
-      margin-top: 8px;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #f3f4f6;
+      color: var(--muted);
+      font-weight: 700;
+      line-height: 1.5;
     }
 
     .status.ok {
-      background: #ecfdf5;
-      color: var(--ok);
+      background: #dcfce7;
+      color: var(--success);
     }
 
-    .status.bad {
-      background: #fef2f2;
+    .status.ng {
+      background: #fee2e2;
       color: var(--danger);
     }
 
-    .resultMain {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    @media (max-width: 720px) {
-      .resultMain {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .resultBox {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 14px;
-      background: #fbfdff;
-    }
-
-    .resultBox .title {
-      color: #667085;
-      font-weight: 800;
-      font-size: 13px;
-      margin-bottom: 8px;
-    }
-
-    .resultBox .value {
-      font-size: 22px;
+    .count {
+      font-size: 18px;
       font-weight: 900;
-      word-break: break-all;
+      margin: 4px 0 12px;
     }
 
-    .none {
-      color: #98a2b3;
-      font-weight: 700;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    .list {
+      border: 1px solid var(--border);
+      border-radius: 16px;
       overflow: hidden;
-      border-radius: 14px;
-      margin-top: 10px;
+      background: #fff;
     }
 
-    th,
-    td {
-      border-bottom: 1px solid var(--line);
-      padding: 10px 8px;
-      text-align: left;
-      font-size: 14px;
-      vertical-align: top;
+    .item {
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 15px;
     }
 
-    th {
-      color: #475467;
-      background: #f8fafc;
-      font-size: 13px;
+    .item:last-child {
+      border-bottom: 0;
     }
 
-    .pill {
-      display: inline-block;
-      border-radius: 999px;
-      padding: 3px 8px;
-      font-size: 12px;
-      font-weight: 800;
-      background: #e8eef7;
-      color: #344054;
-      white-space: nowrap;
-    }
-
-    .hint {
+    .no {
       color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      word-break: break-all;
+      font-weight: 800;
+    }
+
+    .deleteOne {
+      background: #f3f4f6;
+      color: #374151;
+      padding: 8px;
+      margin: 0;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    textarea {
+      height: 160px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       margin-top: 10px;
     }
 
     .small {
-      font-size: 12px;
       color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 520px) {
+      .wrap {
+        padding: 14px;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+      }
+
+      .videoBox,
+      video {
+        min-height: 420px;
+      }
     }
   </style>
 </head>
 
 <body>
-  <main class="wrap">
-    <h1>パーツバーコードリーダー</h1>
-    <p class="lead">
-      読めるバーコードを自動で拾って一覧表示します。S/N候補とP/N候補は読み取り結果から自動判定します。
-    </p>
-
-    <section class="card">
-      <div class="row">
-        <div>
-          <label for="mode">読み取り動作</label>
-          <select id="mode">
-            <option value="continuous" selected>連続読み取り</option>
-            <option value="once">1件読んだら停止</option>
-          </select>
-        </div>
-        <div>
-          <label for="cameraSelect">カメラ</label>
-          <select id="cameraSelect">
-            <option value="">背面カメラを自動選択</option>
-          </select>
-        </div>
+  <div class="wrap">
+    <div class="card">
+      <h1>S/Nバーコード読み取り</h1>
+      <div class="desc">
+        iPhone対応版です。S/Nバーコードを連続で読み取り、一覧に追加します。
+        同じS/Nを連続で読んだ場合は重複登録しません。
       </div>
 
-      <div class="controls">
-        <button id="startBtn">読み取り開始</button>
-        <button id="stopBtn" class="secondary" disabled>停止</button>
-      </div>
+      <label for="cameraSelect">カメラ</label>
+      <select id="cameraSelect">
+        <option value="">背面カメラを自動選択</option>
+      </select>
 
-      <div id="status" class="status">待機中</div>
+      <button class="btn-primary" id="startBtn">読み取り開始</button>
+      <button class="btn-soft" id="stopBtn" disabled>停止</button>
 
-      <div class="cameraBox">
-        <video id="video" autoplay playsinline muted></video>
-        <div class="scanFrame"></div>
+      <div id="status" class="status">待機中です。</div>
+    </div>
+
+    <div class="card">
+      <div class="videoBox">
+        <video id="video" muted playsinline></video>
+        <div class="scanGuide"></div>
         <div class="scanLine"></div>
       </div>
 
-      <p class="hint">
-        コツ：ラベル全体ではなく、バーコードが白枠に大きく入る距離にしてください。複数ある場合は読めた順に下の一覧へ追加します。
-      </p>
-    </section>
+      <div class="small">
+        読みにくい場合は、バーコードを白枠の中央に入れて、少し距離を変えてください。
+      </div>
+    </div>
 
-    <section class="card">
-      <div class="resultMain">
-        <div class="resultBox">
-          <div class="title">S/N候補</div>
-          <div id="snValue" class="value none">なし</div>
-        </div>
-        <div class="resultBox">
-          <div class="title">P/N候補</div>
-          <div id="pnValue" class="value none">なし</div>
+    <div class="card">
+      <div class="count">読み取り件数：<span id="count">0</span></div>
+
+      <label for="manualInput">手入力で追加</label>
+      <input id="manualInput" placeholder="S/Nを手入力して追加できます" />
+      <button class="btn-soft" id="manualAddBtn">手入力を追加</button>
+
+      <label>読み取り一覧</label>
+      <div id="list" class="list">
+        <div class="item">
+          <div class="no">-</div>
+          <div class="code">まだ読み取りデータはありません</div>
+          <button class="deleteOne" disabled>×</button>
         </div>
       </div>
 
-      <div class="controls">
-        <button id="copyBtn" class="secondary">S/Nをコピー</button>
-        <button id="clearBtn" class="danger">結果クリア</button>
+      <div class="row">
+        <button class="btn-soft" id="copyBtn">一覧をコピー</button>
+        <button class="btn-soft" id="csvBtn">CSVを作成</button>
       </div>
 
-      <p id="countText" class="hint">読み取り件数：0</p>
+      <button class="btn-danger" id="clearBtn">一覧をクリア</button>
 
-      <table>
-        <thead>
-          <tr>
-            <th style="width:52px;">No</th>
-            <th>値</th>
-            <th style="width:110px;">判定</th>
-            <th style="width:120px;">形式</th>
-          </tr>
-        </thead>
-        <tbody id="resultBody">
-          <tr>
-            <td colspan="4" class="small">まだ読み取り結果はありません。</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-  </main>
+      <label for="output">コピー用テキスト</label>
+      <textarea id="output" readonly></textarea>
+    </div>
+  </div>
 
   <script>
     const video = document.getElementById("video");
+    const cameraSelect = document.getElementById("cameraSelect");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
-    const clearBtn = document.getElementById("clearBtn");
+    const statusBox = document.getElementById("status");
+    const listBox = document.getElementById("list");
+    const countBox = document.getElementById("count");
+    const output = document.getElementById("output");
+    const manualInput = document.getElementById("manualInput");
+    const manualAddBtn = document.getElementById("manualAddBtn");
     const copyBtn = document.getElementById("copyBtn");
-    const statusEl = document.getElementById("status");
-    const resultBody = document.getElementById("resultBody");
-    const countText = document.getElementById("countText");
-    const snValue = document.getElementById("snValue");
-    const pnValue = document.getElementById("pnValue");
-    const modeEl = document.getElementById("mode");
-    const cameraSelect = document.getElementById("cameraSelect");
+    const csvBtn = document.getElementById("csvBtn");
+    const clearBtn = document.getElementById("clearBtn");
 
-    let stream = null;
-    let detector = null;
-    let timerId = null;
-    let results = [];
-
-    const supportedFormats = [
-      "code_128",
-      "code_39",
-      "code_93",
-      "codabar",
-      "ean_13",
-      "ean_8",
-      "itf",
-      "upc_a",
-      "upc_e",
-      "qr_code",
-      "data_matrix",
-      "pdf417",
-      "aztec"
-    ];
+    let codeReader = null;
+    let controls = null;
+    let scannedList = [];
+    let lastText = "";
+    let lastTime = 0;
 
     function setStatus(text, type = "") {
-      statusEl.textContent = text;
-      statusEl.className = "status" + (type ? " " + type : "");
+      statusBox.textContent = text;
+      statusBox.className = "status";
+      if (type) statusBox.classList.add(type);
     }
 
-    function normalizeValue(value) {
-      return String(value || "").trim();
+    function normalizeCode(text) {
+      return String(text || "")
+        .trim()
+        .replace(/\s+/g, "");
     }
 
-    function classify(value) {
-      const v = normalizeValue(value);
+    function refreshList() {
+      countBox.textContent = scannedList.length;
 
-      if (/^[0-9]{4}-[0-9]{5}$/.test(v)) {
-        return "P/N";
-      }
-
-      if (/^[A-Za-z0-9]+-[A-Za-z0-9]+$/.test(v) && !/^[0-9]{4}-[0-9]{5}$/.test(v)) {
-        return "S/N";
-      }
-
-      if (/^[0-9]+$/.test(v)) {
-        return "数量/数値";
-      }
-
-      return "不明";
-    }
-
-    function addResult(value, format) {
-      const v = normalizeValue(value);
-      if (!v) return;
-
-      const exists = results.some(x => x.value === v);
-      if (exists) return;
-
-      results.push({
-        value: v,
-        format: format || "",
-        kind: classify(v),
-        time: new Date()
-      });
-
-      renderResults();
-
-      if (modeEl.value === "once") {
-        stopScan();
-      }
-    }
-
-    function renderResults() {
-      countText.textContent = "読み取り件数：" + results.length;
-
-      const sn = results.find(x => x.kind === "S/N");
-      const pn = results.find(x => x.kind === "P/N");
-
-      snValue.textContent = sn ? sn.value : "なし";
-      snValue.className = "value" + (sn ? "" : " none");
-
-      pnValue.textContent = pn ? pn.value : "なし";
-      pnValue.className = "value" + (pn ? "" : " none");
-
-      if (results.length === 0) {
-        resultBody.innerHTML = '<tr><td colspan="4" class="small">まだ読み取り結果はありません。</td></tr>';
+      if (scannedList.length === 0) {
+        listBox.innerHTML = `
+          <div class="item">
+            <div class="no">-</div>
+            <div class="code">まだ読み取りデータはありません</div>
+            <button class="deleteOne" disabled>×</button>
+          </div>
+        `;
+        output.value = "";
         return;
       }
 
-      resultBody.innerHTML = results.map((r, i) => `
-        <tr>
-          <td>${i + 1}</td>
-          <td><strong>${escapeHtml(r.value)}</strong></td>
-          <td><span class="pill">${escapeHtml(r.kind)}</span></td>
-          <td>${escapeHtml(r.format)}</td>
-        </tr>
+      listBox.innerHTML = scannedList.map((code, index) => `
+        <div class="item">
+          <div class="no">${index + 1}</div>
+          <div class="code">${escapeHtml(code)}</div>
+          <button class="deleteOne" onclick="deleteItem(${index})">×</button>
+        </div>
       `).join("");
+
+      output.value = scannedList.join("\n");
     }
 
-    function escapeHtml(text) {
-      return String(text)
+    function escapeHtml(str) {
+      return String(str)
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -471,135 +377,215 @@
         .replaceAll("'", "&#039;");
     }
 
+    function addCode(rawText) {
+      const text = normalizeCode(rawText);
+      if (!text) return;
+
+      const now = Date.now();
+
+      if (text === lastText && now - lastTime < 1500) {
+        setStatus(`同じS/Nを連続検出：${text}`, "ok");
+        return;
+      }
+
+      lastText = text;
+      lastTime = now;
+
+      if (scannedList.includes(text)) {
+        setStatus(`重複のため追加しません：${text}`, "ng");
+        vibrateShort();
+        return;
+      }
+
+      scannedList.push(text);
+      refreshList();
+      setStatus(`追加しました：${text}`, "ok");
+      vibrateShort();
+    }
+
+    function deleteItem(index) {
+      scannedList.splice(index, 1);
+      refreshList();
+      setStatus("1件削除しました。");
+    }
+
+    window.deleteItem = deleteItem;
+
+    function vibrateShort() {
+      if (navigator.vibrate) {
+        navigator.vibrate(80);
+      }
+    }
+
     async function loadCameras() {
       try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(d => d.kind === "videoinput");
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setStatus("このブラウザはカメラに対応していません。", "ng");
+          return;
+        }
 
-        cameraSelect.innerHTML = '<option value="">背面カメラを自動選択</option>';
+        const tempStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
 
-        cameras.forEach((cam, idx) => {
+        tempStream.getTracks().forEach(track => track.stop());
+
+        const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+
+        cameraSelect.innerHTML = `<option value="">背面カメラを自動選択</option>`;
+
+        devices.forEach((device, index) => {
           const opt = document.createElement("option");
-          opt.value = cam.deviceId;
-          opt.textContent = cam.label || `カメラ ${idx + 1}`;
+          opt.value = device.deviceId;
+          opt.textContent = device.label || `カメラ ${index + 1}`;
           cameraSelect.appendChild(opt);
         });
-      } catch (e) {
-        console.warn(e);
+
+        const backCamera = devices.find(d =>
+          /back|rear|environment|外|背面/i.test(d.label || "")
+        );
+
+        if (backCamera) {
+          cameraSelect.value = backCamera.deviceId;
+        }
+      } catch (err) {
+        setStatus("カメラ一覧の取得に失敗しました。iPhoneのカメラ許可を確認してください。", "ng");
       }
     }
 
     async function startScan() {
       try {
-        if (!("BarcodeDetector" in window)) {
-          setStatus("このブラウザはBarcodeDetector非対応です。Chrome/Androidか対応ブラウザで確認してください。", "bad");
+        if (!window.ZXingBrowser) {
+          setStatus("読み取りライブラリの読み込みに失敗しました。通信状態を確認してください。", "ng");
           return;
         }
 
-        const formats = await BarcodeDetector.getSupportedFormats();
-        const useFormats = supportedFormats.filter(f => formats.includes(f));
-
-        if (useFormats.length === 0) {
-          setStatus("対応バーコード形式が見つかりません。", "bad");
-          return;
+        if (controls) {
+          stopScan();
         }
 
-        detector = new BarcodeDetector({ formats: useFormats });
+        codeReader = new ZXingBrowser.BrowserMultiFormatReader();
 
-        const selectedCamera = cameraSelect.value;
-
-        const constraints = selectedCamera
-          ? { video: { deviceId: { exact: selectedCamera } }, audio: false }
-          : { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
-
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-        await video.play();
-
-        await loadCameras();
+        const selectedDeviceId = cameraSelect.value || undefined;
 
         startBtn.disabled = true;
         stopBtn.disabled = false;
-        setStatus("読み取り中", "ok");
+        setStatus("カメラ起動中です。");
 
-        timerId = setInterval(detectFrame, 350);
-      } catch (e) {
-        console.error(e);
-        setStatus("カメラ起動に失敗：" + (e.message || e), "bad");
-        stopScan();
-      }
-    }
+        const constraints = selectedDeviceId
+          ? { deviceId: { exact: selectedDeviceId } }
+          : { facingMode: { ideal: "environment" } };
 
-    async function detectFrame() {
-      if (!detector || !video || video.readyState < 2) return;
+        controls = await codeReader.decodeFromConstraints(
+          {
+            video: constraints,
+            audio: false
+          },
+          video,
+          (result, error) => {
+            if (result) {
+              addCode(result.getText());
+            }
+          }
+        );
 
-      try {
-        const codes = await detector.detect(video);
-
-        if (!codes || codes.length === 0) return;
-
-        codes.forEach(code => {
-          addResult(code.rawValue, code.format);
-        });
-      } catch (e) {
-        console.warn(e);
+        setStatus("読み取り中です。S/Nバーコードを白枠に合わせてください。", "ok");
+      } catch (err) {
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        setStatus("カメラ起動または読み取り開始に失敗しました。Safariのカメラ許可、HTTPS接続を確認してください。", "ng");
       }
     }
 
     function stopScan() {
-      if (timerId) {
-        clearInterval(timerId);
-        timerId = null;
-      }
+      try {
+        if (controls) {
+          controls.stop();
+          controls = null;
+        }
 
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+          video.srcObject = null;
+        }
 
-      video.srcObject = null;
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-
-      if (statusEl.textContent === "読み取り中") {
-        setStatus("停止中");
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        setStatus("停止しました。");
+      } catch (err) {
+        setStatus("停止処理でエラーが発生しました。", "ng");
       }
     }
 
-    clearBtn.addEventListener("click", () => {
-      results = [];
-      renderResults();
-      setStatus("結果をクリアしました");
+    manualAddBtn.addEventListener("click", () => {
+      addCode(manualInput.value);
+      manualInput.value = "";
+      manualInput.focus();
+    });
+
+    manualInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        addCode(manualInput.value);
+        manualInput.value = "";
+      }
     });
 
     copyBtn.addEventListener("click", async () => {
-      const sn = results.find(x => x.kind === "S/N");
+      const text = scannedList.join("\n");
+      output.value = text;
 
-      if (!sn) {
-        setStatus("コピーできるS/N候補がありません", "bad");
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("一覧をコピーしました。", "ok");
+      } catch (err) {
+        output.select();
+        document.execCommand("copy");
+        setStatus("コピーしました。", "ok");
+      }
+    });
+
+    csvBtn.addEventListener("click", () => {
+      if (scannedList.length === 0) {
+        setStatus("CSVにするデータがありません。", "ng");
         return;
       }
 
-      try {
-        await navigator.clipboard.writeText(sn.value);
-        setStatus("S/Nをコピーしました：" + sn.value, "ok");
-      } catch (e) {
-        setStatus("コピーに失敗しました：" + sn.value, "bad");
-      }
+      const csv = "No,SN\n" + scannedList
+        .map((code, index) => `${index + 1},"${String(code).replaceAll('"', '""')}"`)
+        .join("\n");
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "sn_list.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      URL.revokeObjectURL(url);
+      setStatus("CSVを作成しました。", "ok");
+    });
+
+    clearBtn.addEventListener("click", () => {
+      if (!confirm("読み取り一覧をすべて削除しますか？")) return;
+      scannedList = [];
+      lastText = "";
+      lastTime = 0;
+      refreshList();
+      setStatus("一覧をクリアしました。");
     });
 
     startBtn.addEventListener("click", startScan);
     stopBtn.addEventListener("click", stopScan);
 
     window.addEventListener("pagehide", stopScan);
+    window.addEventListener("beforeunload", stopScan);
 
-    renderResults();
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus("このブラウザはカメラ取得に対応していません。", "bad");
-    } else {
-      loadCameras();
-    }
+    refreshList();
+    loadCameras();
   </script>
 </body>
 </html>
