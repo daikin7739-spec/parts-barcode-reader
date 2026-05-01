@@ -3,25 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>S/N Continuous Reader Test</title>
+  <title>S/N Reader html5-qrcode</title>
 
-  <!--
-    ZXing 読み取りライブラリ
-    1つ目が失敗した場合、2つ目のCDNから読み込みます。
-  -->
-  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.0/umd/index.min.js"></script>
-  <script>
-    if (!window.ZXingBrowser) {
-      document.write('<script src="https://unpkg.com/@zxing/browser@0.2.0/umd/index.min.js"><\/script>');
-    }
-  </script>
+  <!-- ZXingではなく html5-qrcode を使用 -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     :root {
       --bg: #0f172a;
       --head: #020617;
       --panel: #111827;
-      --panel2: #1f2937;
       --text: #f9fafb;
       --muted: #9ca3af;
       --border: #374151;
@@ -70,66 +61,26 @@
       margin: 0 auto;
     }
 
-    .video-wrap {
-      position: relative;
-      width: 100%;
-      background: #000;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-    }
-
-    video {
-      width: 100%;
-      height: 42vh;
-      min-height: 300px;
-      max-height: 560px;
-      object-fit: cover;
-      display: block;
-      background: #000;
-    }
-
-    .aim {
-      position: absolute;
-      left: 4%;
-      right: 4%;
-      top: 40%;
-      height: 17%;
-      border: 3px solid var(--yellow);
-      border-radius: 12px;
-      pointer-events: none;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,0.22);
-    }
-
-    .aim-line {
-      position: absolute;
-      left: 6%;
-      right: 6%;
-      top: 48.5%;
-      height: 2px;
-      background: rgba(250, 204, 21, 0.9);
-      pointer-events: none;
-    }
-
-    .aim-text {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: calc(40% - 32px);
-      text-align: center;
-      color: var(--yellow);
-      font-size: 14px;
-      font-weight: 800;
-      text-shadow: 0 2px 4px #000;
-      pointer-events: none;
-    }
-
     .panel {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 12px;
       margin-top: 10px;
+    }
+
+    #reader {
+      width: 100%;
+      min-height: 320px;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    #reader video {
+      width: 100% !important;
+      border-radius: 16px;
     }
 
     .row {
@@ -145,7 +96,7 @@
       padding: 12px 14px;
       min-height: 48px;
       color: white;
-      background: var(--panel2);
+      background: #1f2937;
       font-size: 15px;
       font-weight: 800;
     }
@@ -187,6 +138,16 @@
       line-height: 1.5;
       margin: 8px 0 0;
       white-space: pre-wrap;
+    }
+
+    .ok {
+      color: #86efac;
+      font-weight: 800;
+    }
+
+    .ng {
+      color: #fca5a5;
+      font-weight: 800;
     }
 
     .grid3 {
@@ -288,31 +249,20 @@
     .danger-zone {
       border-color: rgba(220, 38, 38, 0.7);
     }
-
-    .lib-ok {
-      color: #86efac;
-      font-weight: 800;
-    }
-
-    .lib-ng {
-      color: #fca5a5;
-      font-weight: 800;
-    }
   </style>
 </head>
 
 <body>
   <header>
     <h1>S/N連続読み取りテスト</h1>
-    <p>読めたら即追加・重複除外・手入力救済</p>
+    <p>html5-qrcode版 / 読めたら即追加</p>
   </header>
 
   <main>
-    <div class="video-wrap">
-      <video id="video" playsinline muted></video>
-      <div class="aim-text">S/Nバーコードを黄色枠の中央へ</div>
-      <div class="aim"></div>
-      <div class="aim-line"></div>
+    <div class="panel">
+      <div id="reader"></div>
+      <p class="status" id="libraryStatus">読み取りライブラリ確認中...</p>
+      <p class="status" id="status">カメラ未起動</p>
     </div>
 
     <div class="panel">
@@ -320,8 +270,9 @@
         <button class="btn-blue btn-wide" id="startBtn">カメラ開始</button>
         <button class="btn-red btn-wide" id="stopBtn">停止</button>
       </div>
-      <p class="status" id="status">カメラ未起動</p>
-      <p class="status" id="libraryStatus">読み取りライブラリ確認中...</p>
+      <p class="hint">
+        ※ カメラ開始後、S/Nバーコードを画面中央に合わせてください。
+      </p>
     </div>
 
     <div class="panel">
@@ -345,7 +296,7 @@
       <div class="label">最後に読んだ値</div>
       <div class="last" id="lastValue">未読み取り</div>
       <p class="hint">
-        ※ 1TやQTYなど違う値が入った場合は、一覧から削除してください。今回は形式判定しません。
+        ※ 1T、QTY、ORIGINなど違う値が入った場合は、一覧から削除してください。
       </p>
     </div>
 
@@ -384,7 +335,6 @@
   </main>
 
   <script>
-    const video = document.getElementById("video");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const statusEl = document.getElementById("status");
@@ -406,8 +356,8 @@
     const outputText = document.getElementById("outputText");
     const clearAllBtn = document.getElementById("clearAllBtn");
 
-    let codeReader = null;
-    let controls = null;
+    let html5QrCode = null;
+    let isRunning = false;
 
     let serials = [];
     let readCount = 0;
@@ -416,24 +366,24 @@
     let lastReadText = "";
     let lastReadTime = 0;
 
-    function checkLibrary() {
-      if (window.ZXingBrowser) {
-        libraryStatus.innerHTML = '<span class="lib-ok">読み取りライブラリ：OK</span>';
-        return true;
-      } else {
-        libraryStatus.innerHTML = '<span class="lib-ng">読み取りライブラリ：NG</span>\n通信状態を確認して再読み込みしてください。';
-        return false;
-      }
-    }
-
     function setStatus(message) {
       statusEl.textContent = message;
+    }
+
+    function checkLibrary() {
+      if (window.Html5Qrcode) {
+        libraryStatus.innerHTML = '<span class="ok">読み取りライブラリ：OK</span>';
+        return true;
+      }
+
+      libraryStatus.innerHTML = '<span class="ng">読み取りライブラリ：NG</span>\\n通信状態を確認して再読み込みしてください。';
+      return false;
     }
 
     function normalizeCode(value) {
       return String(value || "")
         .trim()
-        .replace(/[　\s]/g, "");
+        .replace(/[　\\s]/g, "");
     }
 
     function nowText() {
@@ -466,7 +416,6 @@
           ctx.close();
         }, duration);
       } catch (e) {
-        // 音が出なくても続行
       }
     }
 
@@ -474,7 +423,6 @@
       try {
         if (navigator.vibrate) navigator.vibrate(ms);
       } catch (e) {
-        // 振動できなくても続行
       }
     }
 
@@ -566,93 +514,92 @@
       makeOutput();
     }
 
+    function onScanSuccess(decodedText, decodedResult) {
+      const text = normalizeCode(decodedText);
+      const now = Date.now();
+
+      if (!text) return;
+
+      if (text === lastReadText && now - lastReadTime < 1200) {
+        return;
+      }
+
+      lastReadText = text;
+      lastReadTime = now;
+
+      addSerial(text, "SCAN");
+    }
+
+    function onScanFailure(error) {
+      // 読めない瞬間は常に発生するため、表示しない
+    }
+
     async function startCamera() {
       try {
         if (!checkLibrary()) {
           alert(
-            "読み取りライブラリを読み込めませんでした。\n\n" +
-            "対処：\n" +
-            "1. Safariの更新ボタンで再読み込み\n" +
-            "2. 5G/Wi-Fiの通信状態を確認\n" +
-            "3. それでもダメなら、別方式の html5-qrcode 版に切り替えます"
+            "読み取りライブラリを読み込めませんでした。\\n\\n" +
+            "Safariの更新ボタンで再読み込みしてください。"
           );
           return;
         }
 
-        if (controls) {
-          controls.stop();
-          controls = null;
+        if (isRunning) {
+          setStatus("すでにカメラ起動中です。");
+          return;
         }
 
-        codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+        html5QrCode = new Html5Qrcode("reader");
 
-        const constraints = {
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            advanced: [
-              { focusMode: "continuous" },
-              { exposureMode: "continuous" }
-            ]
+        const config = {
+          fps: 12,
+          qrbox: function(viewfinderWidth, viewfinderHeight) {
+            const width = Math.floor(viewfinderWidth * 0.9);
+            const height = Math.floor(viewfinderHeight * 0.25);
+            return { width, height };
           },
-          audio: false
+          aspectRatio: 1.777778,
+          disableFlip: false
         };
 
         setStatus("カメラ起動中...");
 
-        controls = await codeReader.decodeFromConstraints(
-          constraints,
-          video,
-          (result, error) => {
-            if (!result) return;
-
-            const text = normalizeCode(result.getText());
-            const now = Date.now();
-
-            if (!text) return;
-
-            // 同じ値の瞬間連続検出を抑制
-            if (text === lastReadText && now - lastReadTime < 1200) {
-              return;
-            }
-
-            lastReadText = text;
-            lastReadTime = now;
-
-            addSerial(text, "SCAN");
-          }
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          onScanSuccess,
+          onScanFailure
         );
 
-        setStatus("読み取り中：S/Nバーコードを黄色枠に合わせてください。");
+        isRunning = true;
+        setStatus("読み取り中：S/Nバーコードを画面中央に合わせてください。");
+
       } catch (err) {
         console.error(err);
         setStatus("カメラ起動エラー: " + err.message);
         alert(
-          "カメラを起動できませんでした。\n\n" +
-          "確認してください：\n" +
-          "1. httpsのURLで開いている\n" +
-          "2. カメラ許可をOKにした\n" +
-          "3. SafariまたはChromeで開いている\n" +
-          "4. 他アプリがカメラを使用していない\n\n" +
+          "カメラを起動できませんでした。\\n\\n" +
+          "確認してください：\\n" +
+          "1. カメラ許可をOKにした\\n" +
+          "2. httpsのURLで開いている\\n" +
+          "3. SafariまたはChromeで開いている\\n" +
+          "4. 他アプリがカメラを使用していない\\n\\n" +
           "詳細: " + err.message
         );
       }
     }
 
-    function stopCamera() {
+    async function stopCamera() {
       try {
-        if (controls) {
-          controls.stop();
-          controls = null;
+        if (html5QrCode && isRunning) {
+          await html5QrCode.stop();
+          await html5QrCode.clear();
         }
 
-        if (video.srcObject) {
-          video.srcObject.getTracks().forEach(track => track.stop());
-          video.srcObject = null;
-        }
-
+        html5QrCode = null;
+        isRunning = false;
         setStatus("カメラ停止中");
+
       } catch (err) {
         setStatus("停止処理エラー: " + err.message);
       }
@@ -685,7 +632,7 @@
 
     function makeOutput() {
       const values = serials.map(x => x.value);
-      outputText.value = values.join("\n");
+      outputText.value = values.join("\\n");
     }
 
     async function copyOutput() {
@@ -724,7 +671,7 @@
         ].map(escapeCsv).join(","));
       });
 
-      const csv = "\uFEFF" + lines.join("\n");
+      const csv = "\\uFEFF" + lines.join("\\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
 
