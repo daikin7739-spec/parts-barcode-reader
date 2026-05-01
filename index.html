@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>S/N Reader html5-qrcode</title>
+  <title>Code128 Parts Reader</title>
 
-  <!-- ZXingではなく html5-qrcode を使用 -->
+  <!-- Code128 / GS1-128 読み取り用 -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
@@ -13,6 +13,7 @@
       --bg: #0f172a;
       --head: #020617;
       --panel: #111827;
+      --panel2: #1f2937;
       --text: #f9fafb;
       --muted: #9ca3af;
       --border: #374151;
@@ -21,6 +22,7 @@
       --red: #dc2626;
       --yellow: #facc15;
       --orange: #f97316;
+      --purple: #7c3aed;
     }
 
     * {
@@ -57,7 +59,7 @@
 
     main {
       padding: 10px;
-      max-width: 820px;
+      max-width: 860px;
       margin: 0 auto;
     }
 
@@ -96,7 +98,7 @@
       padding: 12px 14px;
       min-height: 48px;
       color: white;
-      background: #1f2937;
+      background: var(--panel2);
       font-size: 15px;
       font-weight: 800;
     }
@@ -123,6 +125,10 @@
 
     .btn-orange {
       background: var(--orange);
+    }
+
+    .btn-purple {
+      background: var(--purple);
     }
 
     .btn-small {
@@ -180,6 +186,17 @@
       color: var(--muted);
       font-size: 13px;
       margin-bottom: 5px;
+    }
+
+    .value-box {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 20px;
+      font-weight: 900;
+      min-height: 50px;
+      word-break: break-all;
     }
 
     .last {
@@ -249,13 +266,25 @@
     .danger-zone {
       border-color: rgba(220, 38, 38, 0.7);
     }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      margin-right: 4px;
+      margin-top: 4px;
+    }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>S/N連続読み取りテスト</h1>
-    <p>html5-qrcode版 / 読めたら即追加</p>
+    <h1>Code128 パーツ読取テスト</h1>
+    <p>P=品番 / S=シリアル / Q=数量 を自動振り分け</p>
   </header>
 
   <main>
@@ -271,14 +300,14 @@
         <button class="btn-red btn-wide" id="stopBtn">停止</button>
       </div>
       <p class="hint">
-        ※ カメラ開始後、S/Nバーコードを画面中央に合わせてください。
+        対象は Code128 / GS1-128 / EAN128 系です。P/S/Qなどの先頭識別子で振り分けます。
       </p>
     </div>
 
     <div class="panel">
       <div class="grid3">
         <div class="metric">
-          <div class="num" id="countValue">0</div>
+          <div class="num" id="snCountValue">0</div>
           <div class="label">S/N件数</div>
         </div>
         <div class="metric">
@@ -293,20 +322,31 @@
     </div>
 
     <div class="panel">
+      <div class="label">現在のP/N</div>
+      <div class="value-box" id="pnValue">未設定</div>
+
+      <div style="height:10px;"></div>
+
+      <div class="label">数量</div>
+      <div class="value-box" id="qtyValue">未設定</div>
+    </div>
+
+    <div class="panel">
       <div class="label">最後に読んだ値</div>
       <div class="last" id="lastValue">未読み取り</div>
-      <p class="hint">
-        ※ 1T、QTY、ORIGINなど違う値が入った場合は、一覧から削除してください。
-      </p>
+      <p class="hint" id="lastJudgement">判定待ち</p>
     </div>
 
     <div class="panel">
       <div class="label">手入力追加</div>
-      <input id="manualInput" type="text" placeholder="読めないS/Nをここに入力" autocomplete="off" autocapitalize="characters" />
+      <input id="manualInput" type="text" placeholder="P0247-08750W / SYCLWOMP-026C / Q1 など" autocomplete="off" autocapitalize="characters" />
       <div class="row" style="margin-top:8px;">
-        <button class="btn-green btn-wide" id="manualAddBtn">手入力を追加</button>
-        <button class="btn-orange btn-wide" id="undoBtn">最後の1件を戻す</button>
+        <button class="btn-green btn-wide" id="manualAddBtn">手入力を判定追加</button>
+        <button class="btn-orange btn-wide" id="undoBtn">最後のS/Nを戻す</button>
       </div>
+      <p class="hint">
+        手入力でも先頭が P ならP/N、SならS/N、Qなら数量として処理します。
+      </p>
     </div>
 
     <div class="panel">
@@ -315,15 +355,32 @@
     </div>
 
     <div class="panel">
-      <div class="label">出力</div>
+      <div class="label">除外・参考データ</div>
+      <div id="otherList"></div>
+      <p class="hint">
+        1T、4L、3Q、2Pなど、今回はS/N一覧には入れない値です。
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="label">一括貼り付け解析</div>
+      <textarea id="bulkInput" placeholder="アイコニット等の読み取り結果をまとめて貼り付けて解析できます"></textarea>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn-purple btn-wide" id="parseBulkBtn">貼り付け内容を解析</button>
+        <button class="btn-red btn-wide" id="clearBulkBtn">貼り付け欄クリア</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">Forms用出力</div>
       <div class="row">
         <button class="btn-blue btn-wide" id="makeOutputBtn">出力作成</button>
         <button class="btn-green btn-wide" id="copyOutputBtn">コピー</button>
         <button class="btn-blue btn-wide" id="downloadCsvBtn">CSV保存</button>
       </div>
-      <textarea id="outputText" placeholder="ここに出力が表示されます"></textarea>
+      <textarea id="outputText" placeholder="ここにForms貼り付け用データが表示されます"></textarea>
       <p class="hint">
-        Formsでは、このS/N一覧を複数行テキスト欄に貼り付ける想定です。
+        出力内容：P/N、数量、S/N一覧。Formsの複数行テキスト欄に貼り付ける想定です。
       </p>
     </div>
 
@@ -340,16 +397,26 @@
     const statusEl = document.getElementById("status");
     const libraryStatus = document.getElementById("libraryStatus");
 
-    const countValue = document.getElementById("countValue");
+    const snCountValue = document.getElementById("snCountValue");
     const dupValue = document.getElementById("dupValue");
     const readValue = document.getElementById("readValue");
+
+    const pnValue = document.getElementById("pnValue");
+    const qtyValue = document.getElementById("qtyValue");
     const lastValue = document.getElementById("lastValue");
+    const lastJudgement = document.getElementById("lastJudgement");
 
     const manualInput = document.getElementById("manualInput");
     const manualAddBtn = document.getElementById("manualAddBtn");
     const undoBtn = document.getElementById("undoBtn");
 
     const snList = document.getElementById("snList");
+    const otherList = document.getElementById("otherList");
+
+    const bulkInput = document.getElementById("bulkInput");
+    const parseBulkBtn = document.getElementById("parseBulkBtn");
+    const clearBulkBtn = document.getElementById("clearBulkBtn");
+
     const makeOutputBtn = document.getElementById("makeOutputBtn");
     const copyOutputBtn = document.getElementById("copyOutputBtn");
     const downloadCsvBtn = document.getElementById("downloadCsvBtn");
@@ -359,7 +426,11 @@
     let html5QrCode = null;
     let isRunning = false;
 
+    let currentPN = "";
+    let currentQty = "";
     let serials = [];
+    let others = [];
+
     let readCount = 0;
     let dupCount = 0;
 
@@ -370,20 +441,17 @@
       statusEl.textContent = message;
     }
 
-    function checkLibrary() {
-      if (window.Html5Qrcode) {
-        libraryStatus.innerHTML = '<span class="ok">読み取りライブラリ：OK</span>';
-        return true;
-      }
-
-      libraryStatus.innerHTML = '<span class="ng">読み取りライブラリ：NG</span>\\n通信状態を確認して再読み込みしてください。';
-      return false;
-    }
-
     function normalizeCode(value) {
       return String(value || "")
         .trim()
-        .replace(/[　\\s]/g, "");
+        .replace(/[　\s]/g, "");
+    }
+
+    function cleanToken(value) {
+      return String(value || "")
+        .replace(/[\u001d\u001e\u0004]/g, "\n")
+        .replace(/[()]/g, "")
+        .trim();
     }
 
     function nowText() {
@@ -395,6 +463,16 @@
       const mm = String(d.getMinutes()).padStart(2, "0");
       const ss = String(d.getSeconds()).padStart(2, "0");
       return `${y}/${m}/${day} ${hh}:${mm}:${ss}`;
+    }
+
+    function checkLibrary() {
+      if (window.Html5Qrcode) {
+        libraryStatus.innerHTML = '<span class="ok">読み取りライブラリ：OK</span>';
+        return true;
+      }
+
+      libraryStatus.innerHTML = '<span class="ng">読み取りライブラリ：NG</span>\n通信状態を確認して再読み込みしてください。';
+      return false;
     }
 
     function beep(freq = 880, duration = 90) {
@@ -427,91 +505,178 @@
     }
 
     function render() {
-      countValue.textContent = serials.length;
+      snCountValue.textContent = serials.length;
       dupValue.textContent = dupCount;
       readValue.textContent = readCount;
 
+      pnValue.textContent = currentPN || "未設定";
+      qtyValue.textContent = currentQty || "未設定";
+
       snList.innerHTML = "";
+      otherList.innerHTML = "";
 
       if (serials.length === 0) {
         const empty = document.createElement("div");
         empty.className = "hint";
         empty.textContent = "まだS/Nは追加されていません。";
         snList.appendChild(empty);
-        return;
+      } else {
+        serials.slice().reverse().forEach((item, revIndex) => {
+          const originalIndex = serials.length - 1 - revIndex;
+
+          const row = document.createElement("div");
+          row.className = "sn-item";
+
+          const left = document.createElement("div");
+
+          const code = document.createElement("div");
+          code.className = "sn-code";
+          code.textContent = `${originalIndex + 1}. ${item.value}`;
+
+          const meta = document.createElement("div");
+          meta.className = "sn-meta";
+          meta.textContent = `${item.source} / ${item.time}`;
+
+          left.appendChild(code);
+          left.appendChild(meta);
+
+          const del = document.createElement("button");
+          del.className = "btn-red btn-small";
+          del.textContent = "削除";
+          del.onclick = () => {
+            serials.splice(originalIndex, 1);
+            render();
+            makeOutput();
+            setStatus("S/Nを1件削除しました。");
+          };
+
+          row.appendChild(left);
+          row.appendChild(del);
+          snList.appendChild(row);
+        });
       }
 
-      serials.slice().reverse().forEach((item, revIndex) => {
-        const originalIndex = serials.length - 1 - revIndex;
-
-        const row = document.createElement("div");
-        row.className = "sn-item";
-
-        const left = document.createElement("div");
-
-        const code = document.createElement("div");
-        code.className = "sn-code";
-        code.textContent = `${originalIndex + 1}. ${item.value}`;
-
-        const meta = document.createElement("div");
-        meta.className = "sn-meta";
-        meta.textContent = `${item.source} / ${item.time}`;
-
-        left.appendChild(code);
-        left.appendChild(meta);
-
-        const del = document.createElement("button");
-        del.className = "btn-red btn-small";
-        del.textContent = "削除";
-        del.onclick = () => {
-          serials.splice(originalIndex, 1);
-          render();
-          makeOutput();
-          setStatus("1件削除しました。");
-        };
-
-        row.appendChild(left);
-        row.appendChild(del);
-        snList.appendChild(row);
-      });
+      if (others.length === 0) {
+        const none = document.createElement("span");
+        none.className = "hint";
+        none.textContent = "除外データなし";
+        otherList.appendChild(none);
+      } else {
+        others.slice(-30).forEach(x => {
+          const span = document.createElement("span");
+          span.className = "pill";
+          span.textContent = x;
+          otherList.appendChild(span);
+        });
+      }
     }
 
-    function addSerial(rawValue, source) {
-      const value = normalizeCode(rawValue);
+    function addSN(value, source) {
+      const sn = normalizeCode(value);
+      if (!sn) return;
 
-      if (!value) {
-        setStatus("空の値は追加できません。");
-        return;
-      }
-
-      if (source === "SCAN") {
-        readCount += 1;
-      }
-
-      lastValue.textContent = value;
-
-      const exists = serials.some(x => x.value === value);
+      const exists = serials.some(x => x.value === sn);
 
       if (exists) {
         dupCount += 1;
+        lastJudgement.textContent = `重複S/Nのため除外：${sn}`;
         beep(330, 120);
         vibrate(120);
-        setStatus(`重複のため除外しました：${value}`);
         render();
         return;
       }
 
       serials.push({
-        value,
+        value: sn,
         source,
         time: nowText()
       });
 
+      lastJudgement.textContent = `S/Nとして追加：${sn}`;
       beep(940, 80);
       vibrate(50);
-      setStatus(`追加しました：${value}`);
       render();
       makeOutput();
+    }
+
+    function addOther(value) {
+      const v = normalizeCode(value);
+      if (!v) return;
+
+      others.push(v);
+      if (others.length > 100) {
+        others = others.slice(-100);
+      }
+    }
+
+    function judgeAndAdd(rawValue, source) {
+      const value = normalizeCode(rawValue);
+      if (!value) return;
+
+      lastValue.textContent = value;
+
+      // P/N: Pで始まる。ただし 2P などはREV系なので除外
+      if (/^P.+/i.test(value)) {
+        currentPN = value.substring(1);
+        lastJudgement.textContent = `P/Nとして設定：${currentPN}`;
+        beep(700, 80);
+        vibrate(40);
+        render();
+        makeOutput();
+        return;
+      }
+
+      // S/N: Sで始まる
+      if (/^S.+/i.test(value)) {
+        const sn = value.substring(1);
+        addSN(sn, source);
+        return;
+      }
+
+      // 数量: Q1, Q10 など
+      if (/^Q\d+$/i.test(value)) {
+        currentQty = value.substring(1);
+        lastJudgement.textContent = `数量として設定：${currentQty}`;
+        beep(620, 80);
+        vibrate(40);
+        render();
+        makeOutput();
+        return;
+      }
+
+      // 2P04 = REVとして参考データ
+      // 4LTW = 原産地系
+      // 1T = LOT系
+      addOther(value);
+      lastJudgement.textContent = `除外/参考データ：${value}`;
+      render();
+    }
+
+    function splitToTokens(text) {
+      const cleaned = cleanToken(text);
+
+      return cleaned
+        .split(/[\n\r\t,; ]+/)
+        .map(x => normalizeCode(x))
+        .filter(Boolean)
+        .filter(x => x !== "[)>")
+        .filter(x => x !== "06");
+    }
+
+    function parseBulkText() {
+      const text = bulkInput.value || "";
+      const tokens = splitToTokens(text);
+
+      if (tokens.length === 0) {
+        alert("解析するデータがありません。");
+        return;
+      }
+
+      tokens.forEach(token => {
+        judgeAndAdd(token, "PASTE");
+      });
+
+      setStatus(`貼り付け解析完了：${tokens.length}個の候補を処理しました。`);
     }
 
     function onScanSuccess(decodedText, decodedResult) {
@@ -527,20 +692,28 @@
       lastReadText = text;
       lastReadTime = now;
 
-      addSerial(text, "SCAN");
+      readCount += 1;
+
+      // 長いGS1データとして読まれた場合も分解
+      const tokens = splitToTokens(decodedText);
+
+      if (tokens.length > 1) {
+        tokens.forEach(token => judgeAndAdd(token, "SCAN"));
+      } else {
+        judgeAndAdd(text, "SCAN");
+      }
+
+      render();
     }
 
     function onScanFailure(error) {
-      // 読めない瞬間は常に発生するため、表示しない
+      // 読めない瞬間は多発するため非表示
     }
 
     async function startCamera() {
       try {
         if (!checkLibrary()) {
-          alert(
-            "読み取りライブラリを読み込めませんでした。\\n\\n" +
-            "Safariの更新ボタンで再読み込みしてください。"
-          );
+          alert("読み取りライブラリを読み込めませんでした。再読み込みしてください。");
           return;
         }
 
@@ -551,16 +724,28 @@
 
         html5QrCode = new Html5Qrcode("reader");
 
+        let formatsToSupport = undefined;
+
+        if (window.Html5QrcodeSupportedFormats) {
+          formatsToSupport = [
+            Html5QrcodeSupportedFormats.CODE_128
+          ];
+        }
+
         const config = {
           fps: 12,
           qrbox: function(viewfinderWidth, viewfinderHeight) {
-            const width = Math.floor(viewfinderWidth * 0.9);
-            const height = Math.floor(viewfinderHeight * 0.25);
+            const width = Math.floor(viewfinderWidth * 0.92);
+            const height = Math.floor(viewfinderHeight * 0.22);
             return { width, height };
           },
           aspectRatio: 1.777778,
           disableFlip: false
         };
+
+        if (formatsToSupport) {
+          config.formatsToSupport = formatsToSupport;
+        }
 
         setStatus("カメラ起動中...");
 
@@ -572,18 +757,18 @@
         );
 
         isRunning = true;
-        setStatus("読み取り中：S/Nバーコードを画面中央に合わせてください。");
+        setStatus("読み取り中：Code128バーコードを画面中央に合わせてください。");
 
       } catch (err) {
         console.error(err);
         setStatus("カメラ起動エラー: " + err.message);
         alert(
-          "カメラを起動できませんでした。\\n\\n" +
-          "確認してください：\\n" +
-          "1. カメラ許可をOKにした\\n" +
-          "2. httpsのURLで開いている\\n" +
-          "3. SafariまたはChromeで開いている\\n" +
-          "4. 他アプリがカメラを使用していない\\n\\n" +
+          "カメラを起動できませんでした。\n\n" +
+          "確認してください：\n" +
+          "1. カメラ許可をOKにした\n" +
+          "2. httpsのURLで開いている\n" +
+          "3. SafariまたはChromeで開いている\n" +
+          "4. 他アプリがカメラを使用していない\n\n" +
           "詳細: " + err.message
         );
       }
@@ -609,30 +794,39 @@
       const value = normalizeCode(manualInput.value);
 
       if (!value) {
-        alert("追加するS/Nを入力してください。");
+        alert("追加する値を入力してください。");
         return;
       }
 
-      addSerial(value, "MANUAL");
+      judgeAndAdd(value, "MANUAL");
       manualInput.value = "";
       manualInput.focus();
+      render();
+      makeOutput();
     }
 
     function undoLast() {
       if (serials.length === 0) {
-        setStatus("戻すデータがありません。");
+        setStatus("戻すS/Nがありません。");
         return;
       }
 
       const removed = serials.pop();
-      setStatus(`最後の1件を戻しました：${removed.value}`);
+      setStatus(`最後のS/Nを戻しました：${removed.value}`);
       render();
       makeOutput();
     }
 
     function makeOutput() {
-      const values = serials.map(x => x.value);
-      outputText.value = values.join("\\n");
+      const snValues = serials.map(x => x.value);
+
+      const lines = [];
+      lines.push(`P/N:${currentPN || ""}`);
+      lines.push(`QTY:${currentQty || ""}`);
+      lines.push("S/N:");
+      lines.push(...snValues);
+
+      outputText.value = lines.join("\n");
     }
 
     async function copyOutput() {
@@ -660,18 +854,20 @@
 
     function downloadCsv() {
       const lines = [];
-      lines.push(["No", "S/N", "Source", "ReadTime"].map(escapeCsv).join(","));
+      lines.push(["No", "P/N", "S/N", "QTY", "Source", "ReadTime"].map(escapeCsv).join(","));
 
       serials.forEach((item, index) => {
         lines.push([
           index + 1,
+          currentPN,
           item.value,
+          currentQty,
           item.source,
           item.time
         ].map(escapeCsv).join(","));
       });
 
-      const csv = "\\uFEFF" + lines.join("\\n");
+      const csv = "\uFEFF" + lines.join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
 
@@ -684,7 +880,7 @@
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `sn_test_${y}${m}${day}_${hh}${mm}.csv`;
+      a.download = `code128_parts_${y}${m}${day}_${hh}${mm}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -694,14 +890,18 @@
     }
 
     function clearAll() {
-      if (!confirm("S/N一覧、件数、重複数をすべてクリアしますか？")) return;
+      if (!confirm("P/N、数量、S/N一覧、除外データをすべてクリアしますか？")) return;
 
+      currentPN = "";
+      currentQty = "";
       serials = [];
+      others = [];
       readCount = 0;
       dupCount = 0;
       lastReadText = "";
       lastReadTime = 0;
       lastValue.textContent = "未読み取り";
+      lastJudgement.textContent = "判定待ち";
       outputText.value = "";
 
       render();
@@ -719,6 +919,11 @@
         e.preventDefault();
         addManual();
       }
+    });
+
+    parseBulkBtn.addEventListener("click", parseBulkText);
+    clearBulkBtn.addEventListener("click", () => {
+      bulkInput.value = "";
     });
 
     makeOutputBtn.addEventListener("click", makeOutput);
