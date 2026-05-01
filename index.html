@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Code128 Parts Reader</title>
+  <title>Code128 Enhanced Reader</title>
 
-  <!-- Code128 / GS1-128 読み取り用 -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
@@ -59,7 +58,7 @@
 
     main {
       padding: 10px;
-      max-width: 860px;
+      max-width: 900px;
       margin: 0 auto;
     }
 
@@ -73,11 +72,12 @@
 
     #reader {
       width: 100%;
-      min-height: 320px;
+      min-height: 330px;
       background: #000;
       border: 1px solid var(--border);
       border-radius: 16px;
       overflow: hidden;
+      position: relative;
     }
 
     #reader video {
@@ -105,6 +105,10 @@
 
     button:active {
       transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.45;
     }
 
     .btn-wide {
@@ -136,6 +140,22 @@
       min-height: 38px;
       padding: 8px 10px;
       border-radius: 10px;
+    }
+
+    select, input, textarea {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #020617;
+      color: var(--text);
+      padding: 12px;
+      font-size: 16px;
+    }
+
+    textarea {
+      min-height: 150px;
+      font-size: 13px;
+      line-height: 1.45;
     }
 
     .status {
@@ -210,22 +230,6 @@
       word-break: break-all;
     }
 
-    input, textarea {
-      width: 100%;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #020617;
-      color: var(--text);
-      padding: 12px;
-      font-size: 16px;
-    }
-
-    textarea {
-      min-height: 150px;
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
     .sn-list {
       display: flex;
       flex-direction: column;
@@ -278,13 +282,25 @@
       margin-right: 4px;
       margin-top: 4px;
     }
+
+    .zoom-line {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      padding: 0;
+      height: 42px;
+    }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>Code128 パーツ読取テスト</h1>
-    <p>P=品番 / S=シリアル / Q=数量 を自動振り分け</p>
+    <h1>Code128 強化読取テスト</h1>
+    <p>カメラ選択・ズーム・ライト・P/S/Q自動振り分け</p>
   </header>
 
   <main>
@@ -295,12 +311,33 @@
     </div>
 
     <div class="panel">
-      <div class="row">
+      <div class="label">カメラ選択</div>
+      <select id="cameraSelect"></select>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn-purple btn-wide" id="refreshCameraBtn">カメラ一覧更新</button>
         <button class="btn-blue btn-wide" id="startBtn">カメラ開始</button>
         <button class="btn-red btn-wide" id="stopBtn">停止</button>
       </div>
       <p class="hint">
-        対象は Code128 / GS1-128 / EAN128 系です。P/S/Qなどの先頭識別子で振り分けます。
+        複数カメラが出る場合は、読めるカメラを順番に試してください。
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="label">読取補助</div>
+      <div class="zoom-line">
+        <input id="zoomRange" type="range" min="1" max="4" step="0.1" value="1" disabled />
+        <div class="value-box" style="font-size:16px; min-width:80px; text-align:center;" id="zoomValue">1.0x</div>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn-orange btn-wide" id="zoom1Btn">1.0x</button>
+        <button class="btn-orange btn-wide" id="zoom15Btn">1.5x</button>
+        <button class="btn-orange btn-wide" id="zoom2Btn">2.0x</button>
+        <button class="btn-orange btn-wide" id="zoom3Btn">3.0x</button>
+        <button class="btn-green btn-wide" id="torchBtn">ライトON/OFF</button>
+      </div>
+      <p class="hint" id="capabilityText">
+        カメラ起動後、端末が対応していればズーム・ライトが使えます。
       </p>
     </div>
 
@@ -344,9 +381,6 @@
         <button class="btn-green btn-wide" id="manualAddBtn">手入力を判定追加</button>
         <button class="btn-orange btn-wide" id="undoBtn">最後のS/Nを戻す</button>
       </div>
-      <p class="hint">
-        手入力でも先頭が P ならP/N、SならS/N、Qなら数量として処理します。
-      </p>
     </div>
 
     <div class="panel">
@@ -358,7 +392,7 @@
       <div class="label">除外・参考データ</div>
       <div id="otherList"></div>
       <p class="hint">
-        1T、4L、3Q、2Pなど、今回はS/N一覧には入れない値です。
+        1T、4L、3Q、2Pなど、S/N一覧には入れない値です。
       </p>
     </div>
 
@@ -379,9 +413,6 @@
         <button class="btn-blue btn-wide" id="downloadCsvBtn">CSV保存</button>
       </div>
       <textarea id="outputText" placeholder="ここにForms貼り付け用データが表示されます"></textarea>
-      <p class="hint">
-        出力内容：P/N、数量、S/N一覧。Formsの複数行テキスト欄に貼り付ける想定です。
-      </p>
     </div>
 
     <div class="panel danger-zone">
@@ -392,10 +423,21 @@
   </main>
 
   <script>
+    const cameraSelect = document.getElementById("cameraSelect");
+    const refreshCameraBtn = document.getElementById("refreshCameraBtn");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const statusEl = document.getElementById("status");
     const libraryStatus = document.getElementById("libraryStatus");
+
+    const zoomRange = document.getElementById("zoomRange");
+    const zoomValue = document.getElementById("zoomValue");
+    const zoom1Btn = document.getElementById("zoom1Btn");
+    const zoom15Btn = document.getElementById("zoom15Btn");
+    const zoom2Btn = document.getElementById("zoom2Btn");
+    const zoom3Btn = document.getElementById("zoom3Btn");
+    const torchBtn = document.getElementById("torchBtn");
+    const capabilityText = document.getElementById("capabilityText");
 
     const snCountValue = document.getElementById("snCountValue");
     const dupValue = document.getElementById("dupValue");
@@ -425,6 +467,8 @@
 
     let html5QrCode = null;
     let isRunning = false;
+    let currentTrack = null;
+    let torchOn = false;
 
     let currentPN = "";
     let currentQty = "";
@@ -493,14 +537,151 @@
           osc.stop();
           ctx.close();
         }, duration);
-      } catch (e) {
-      }
+      } catch (e) {}
     }
 
     function vibrate(ms = 60) {
       try {
         if (navigator.vibrate) navigator.vibrate(ms);
-      } catch (e) {
+      } catch (e) {}
+    }
+
+    async function refreshCameras() {
+      try {
+        if (!checkLibrary()) return;
+
+        cameraSelect.innerHTML = "";
+
+        const cameras = await Html5Qrcode.getCameras();
+
+        if (!cameras || cameras.length === 0) {
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "カメラが見つかりません";
+          cameraSelect.appendChild(opt);
+          setStatus("カメラが見つかりません。");
+          return;
+        }
+
+        cameras.forEach((cam, index) => {
+          const opt = document.createElement("option");
+          opt.value = cam.id;
+          opt.textContent = cam.label || `Camera ${index + 1}`;
+          cameraSelect.appendChild(opt);
+        });
+
+        const backLikeIndex = cameras.findIndex(c =>
+          /back|rear|environment|背面|外側/i.test(c.label || "")
+        );
+
+        if (backLikeIndex >= 0) {
+          cameraSelect.selectedIndex = backLikeIndex;
+        } else if (cameras.length > 1) {
+          cameraSelect.selectedIndex = cameras.length - 1;
+        }
+
+        setStatus(`カメラ一覧を取得しました：${cameras.length}件`);
+      } catch (err) {
+        setStatus("カメラ一覧取得エラー: " + err.message);
+      }
+    }
+
+    function getVideoTrack() {
+      const reader = document.getElementById("reader");
+      const video = reader.querySelector("video");
+      if (!video || !video.srcObject) return null;
+      const tracks = video.srcObject.getVideoTracks();
+      return tracks && tracks.length ? tracks[0] : null;
+    }
+
+    function updateCameraCapabilities() {
+      currentTrack = getVideoTrack();
+
+      if (!currentTrack) {
+        capabilityText.textContent = "カメラトラックを取得できません。";
+        zoomRange.disabled = true;
+        return;
+      }
+
+      const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+      const settings = currentTrack.getSettings ? currentTrack.getSettings() : {};
+
+      let lines = [];
+
+      if (caps.zoom) {
+        zoomRange.min = caps.zoom.min ?? 1;
+        zoomRange.max = caps.zoom.max ?? 4;
+        zoomRange.step = caps.zoom.step ?? 0.1;
+        zoomRange.value = settings.zoom ?? caps.zoom.min ?? 1;
+        zoomRange.disabled = false;
+        zoomValue.textContent = Number(zoomRange.value).toFixed(1) + "x";
+        lines.push(`ズーム対応：${caps.zoom.min}〜${caps.zoom.max}`);
+      } else {
+        zoomRange.disabled = true;
+        lines.push("ズーム：非対応または取得不可");
+      }
+
+      if (caps.torch) {
+        lines.push("ライト：対応");
+      } else {
+        lines.push("ライト：非対応または取得不可");
+      }
+
+      capabilityText.textContent = lines.join("\n");
+    }
+
+    async function applyZoom(value) {
+      try {
+        currentTrack = getVideoTrack();
+        if (!currentTrack || !currentTrack.applyConstraints) {
+          setStatus("ズーム非対応：カメラトラックを取得できません。");
+          return;
+        }
+
+        const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+        if (!caps.zoom) {
+          setStatus("この端末/ブラウザではズーム制御に非対応です。");
+          return;
+        }
+
+        let z = Number(value);
+        z = Math.max(caps.zoom.min, Math.min(caps.zoom.max, z));
+
+        await currentTrack.applyConstraints({
+          advanced: [{ zoom: z }]
+        });
+
+        zoomRange.value = z;
+        zoomValue.textContent = z.toFixed(1) + "x";
+        setStatus(`ズーム変更：${z.toFixed(1)}x`);
+      } catch (err) {
+        setStatus("ズーム変更エラー: " + err.message);
+      }
+    }
+
+    async function toggleTorch() {
+      try {
+        currentTrack = getVideoTrack();
+        if (!currentTrack || !currentTrack.applyConstraints) {
+          setStatus("ライト非対応：カメラトラックを取得できません。");
+          return;
+        }
+
+        const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+        if (!caps.torch) {
+          setStatus("この端末/ブラウザではライト制御に非対応です。");
+          return;
+        }
+
+        torchOn = !torchOn;
+
+        await currentTrack.applyConstraints({
+          advanced: [{ torch: torchOn }]
+        });
+
+        setStatus(torchOn ? "ライトON" : "ライトOFF");
+      } catch (err) {
+        setStatus("ライト切替エラー: " + err.message);
       }
     }
 
@@ -562,7 +743,7 @@
         none.textContent = "除外データなし";
         otherList.appendChild(none);
       } else {
-        others.slice(-30).forEach(x => {
+        others.slice(-40).forEach(x => {
           const span = document.createElement("span");
           span.className = "pill";
           span.textContent = x;
@@ -604,8 +785,8 @@
       if (!v) return;
 
       others.push(v);
-      if (others.length > 100) {
-        others = others.slice(-100);
+      if (others.length > 150) {
+        others = others.slice(-150);
       }
     }
 
@@ -615,7 +796,6 @@
 
       lastValue.textContent = value;
 
-      // P/N: Pで始まる。ただし 2P などはREV系なので除外
       if (/^P.+/i.test(value)) {
         currentPN = value.substring(1);
         lastJudgement.textContent = `P/Nとして設定：${currentPN}`;
@@ -626,14 +806,12 @@
         return;
       }
 
-      // S/N: Sで始まる
       if (/^S.+/i.test(value)) {
         const sn = value.substring(1);
         addSN(sn, source);
         return;
       }
 
-      // 数量: Q1, Q10 など
       if (/^Q\d+$/i.test(value)) {
         currentQty = value.substring(1);
         lastJudgement.textContent = `数量として設定：${currentQty}`;
@@ -644,9 +822,6 @@
         return;
       }
 
-      // 2P04 = REVとして参考データ
-      // 4LTW = 原産地系
-      // 1T = LOT系
       addOther(value);
       lastJudgement.textContent = `除外/参考データ：${value}`;
       render();
@@ -685,7 +860,7 @@
 
       if (!text) return;
 
-      if (text === lastReadText && now - lastReadTime < 1200) {
+      if (text === lastReadText && now - lastReadTime < 1000) {
         return;
       }
 
@@ -694,7 +869,6 @@
 
       readCount += 1;
 
-      // 長いGS1データとして読まれた場合も分解
       const tokens = splitToTokens(decodedText);
 
       if (tokens.length > 1) {
@@ -706,9 +880,7 @@
       render();
     }
 
-    function onScanFailure(error) {
-      // 読めない瞬間は多発するため非表示
-    }
+    function onScanFailure(error) {}
 
     async function startCamera() {
       try {
@@ -733,31 +905,47 @@
         }
 
         const config = {
-          fps: 12,
+          fps: 15,
           qrbox: function(viewfinderWidth, viewfinderHeight) {
-            const width = Math.floor(viewfinderWidth * 0.92);
-            const height = Math.floor(viewfinderHeight * 0.22);
+            const width = Math.floor(viewfinderWidth * 0.96);
+            const height = Math.floor(viewfinderHeight * 0.16);
             return { width, height };
           },
           aspectRatio: 1.777778,
-          disableFlip: false
+          disableFlip: true,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
         };
 
         if (formatsToSupport) {
           config.formatsToSupport = formatsToSupport;
         }
 
+        const selectedCameraId = cameraSelect.value;
+
         setStatus("カメラ起動中...");
 
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          config,
-          onScanSuccess,
-          onScanFailure
-        );
+        if (selectedCameraId) {
+          await html5QrCode.start(
+            selectedCameraId,
+            config,
+            onScanSuccess,
+            onScanFailure
+          );
+        } else {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            onScanSuccess,
+            onScanFailure
+          );
+        }
 
         isRunning = true;
-        setStatus("読み取り中：Code128バーコードを画面中央に合わせてください。");
+        setStatus("読み取り中：Code128バーコードを横長枠に合わせてください。");
+
+        setTimeout(updateCameraCapabilities, 800);
 
       } catch (err) {
         console.error(err);
@@ -783,6 +971,10 @@
 
         html5QrCode = null;
         isRunning = false;
+        currentTrack = null;
+        torchOn = false;
+        zoomRange.disabled = true;
+
         setStatus("カメラ停止中");
 
       } catch (err) {
@@ -880,7 +1072,7 @@
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `code128_parts_${y}${m}${day}_${hh}${mm}.csv`;
+      a.download = `code128_zoom_${y}${m}${day}_${hh}${mm}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -908,8 +1100,16 @@
       setStatus("全クリアしました。");
     }
 
+    refreshCameraBtn.addEventListener("click", refreshCameras);
     startBtn.addEventListener("click", startCamera);
     stopBtn.addEventListener("click", stopCamera);
+
+    zoomRange.addEventListener("input", e => applyZoom(e.target.value));
+    zoom1Btn.addEventListener("click", () => applyZoom(1.0));
+    zoom15Btn.addEventListener("click", () => applyZoom(1.5));
+    zoom2Btn.addEventListener("click", () => applyZoom(2.0));
+    zoom3Btn.addEventListener("click", () => applyZoom(3.0));
+    torchBtn.addEventListener("click", toggleTorch);
 
     manualAddBtn.addEventListener("click", addManual);
     undoBtn.addEventListener("click", undoLast);
@@ -931,8 +1131,9 @@
     downloadCsvBtn.addEventListener("click", downloadCsv);
     clearAllBtn.addEventListener("click", clearAll);
 
-    window.addEventListener("load", () => {
+    window.addEventListener("load", async () => {
       setTimeout(checkLibrary, 800);
+      setTimeout(refreshCameras, 1200);
     });
 
     render();
