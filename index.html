@@ -5,7 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>S/N Continuous Reader Test</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
+  <!--
+    ZXing 読み取りライブラリ
+    1つ目が失敗した場合、2つ目のCDNから読み込みます。
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.0/umd/index.min.js"></script>
+  <script>
+    if (!window.ZXingBrowser) {
+      document.write('<script src="https://unpkg.com/@zxing/browser@0.2.0/umd/index.min.js"><\/script>');
+    }
+  </script>
 
   <style>
     :root {
@@ -177,6 +186,7 @@
       font-size: 13px;
       line-height: 1.5;
       margin: 8px 0 0;
+      white-space: pre-wrap;
     }
 
     .grid3 {
@@ -279,12 +289,14 @@
       border-color: rgba(220, 38, 38, 0.7);
     }
 
-    .toggle-on {
-      background: var(--green);
+    .lib-ok {
+      color: #86efac;
+      font-weight: 800;
     }
 
-    .toggle-off {
-      background: #4b5563;
+    .lib-ng {
+      color: #fca5a5;
+      font-weight: 800;
     }
   </style>
 </head>
@@ -309,6 +321,7 @@
         <button class="btn-red btn-wide" id="stopBtn">停止</button>
       </div>
       <p class="status" id="status">カメラ未起動</p>
+      <p class="status" id="libraryStatus">読み取りライブラリ確認中...</p>
     </div>
 
     <div class="panel">
@@ -375,6 +388,7 @@
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const statusEl = document.getElementById("status");
+    const libraryStatus = document.getElementById("libraryStatus");
 
     const countValue = document.getElementById("countValue");
     const dupValue = document.getElementById("dupValue");
@@ -402,6 +416,16 @@
     let lastReadText = "";
     let lastReadTime = 0;
 
+    function checkLibrary() {
+      if (window.ZXingBrowser) {
+        libraryStatus.innerHTML = '<span class="lib-ok">読み取りライブラリ：OK</span>';
+        return true;
+      } else {
+        libraryStatus.innerHTML = '<span class="lib-ng">読み取りライブラリ：NG</span>\n通信状態を確認して再読み込みしてください。';
+        return false;
+      }
+    }
+
     function setStatus(message) {
       statusEl.textContent = message;
     }
@@ -428,11 +452,15 @@
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
+
         osc.connect(gain);
         gain.connect(ctx.destination);
+
         osc.frequency.value = freq;
         gain.gain.value = 0.08;
+
         osc.start();
+
         setTimeout(() => {
           osc.stop();
           ctx.close();
@@ -508,7 +536,10 @@
         return;
       }
 
-      readCount += source === "SCAN" ? 1 : 0;
+      if (source === "SCAN") {
+        readCount += 1;
+      }
+
       lastValue.textContent = value;
 
       const exists = serials.some(x => x.value === value);
@@ -537,8 +568,14 @@
 
     async function startCamera() {
       try {
-        if (!window.ZXingBrowser) {
-          alert("読み取りライブラリを読み込めませんでした。通信状態を確認して再読み込みしてください。");
+        if (!checkLibrary()) {
+          alert(
+            "読み取りライブラリを読み込めませんでした。\n\n" +
+            "対処：\n" +
+            "1. Safariの更新ボタンで再読み込み\n" +
+            "2. 5G/Wi-Fiの通信状態を確認\n" +
+            "3. それでもダメなら、別方式の html5-qrcode 版に切り替えます"
+          );
           return;
         }
 
@@ -597,7 +634,8 @@
           "1. httpsのURLで開いている\n" +
           "2. カメラ許可をOKにした\n" +
           "3. SafariまたはChromeで開いている\n" +
-          "4. 他アプリがカメラを使用していない"
+          "4. 他アプリがカメラを使用していない\n\n" +
+          "詳細: " + err.message
         );
       }
     }
@@ -740,6 +778,10 @@
     copyOutputBtn.addEventListener("click", copyOutput);
     downloadCsvBtn.addEventListener("click", downloadCsv);
     clearAllBtn.addEventListener("click", clearAll);
+
+    window.addEventListener("load", () => {
+      setTimeout(checkLibrary, 800);
+    });
 
     render();
     makeOutput();
