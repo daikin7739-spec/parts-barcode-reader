@@ -3,23 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Code128 Max Reader</title>
+  <title>Code128 + OCR Reader</title>
 
-  <!-- 1Dバーコード向け：Quagga2 -->
+  <!-- Code128ライブ読取 -->
   <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
 
-  <!-- 写真/貼り付け補助用：html5-qrcode -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- 写真OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
     :root {
-      --bg:#0f172a; --head:#020617; --panel:#111827; --panel2:#1f2937;
-      --text:#f9fafb; --muted:#9ca3af; --border:#374151;
-      --blue:#2563eb; --green:#16a34a; --red:#dc2626; --orange:#f97316;
-      --purple:#7c3aed; --yellow:#facc15;
+      --bg:#0f172a;
+      --head:#020617;
+      --panel:#111827;
+      --text:#f9fafb;
+      --muted:#9ca3af;
+      --border:#374151;
+      --blue:#2563eb;
+      --green:#16a34a;
+      --red:#dc2626;
+      --orange:#f97316;
+      --purple:#7c3aed;
+      --yellow:#facc15;
+      --white:#ffffff;
     }
 
-    * { box-sizing: border-box; }
+    * { box-sizing:border-box; }
 
     body {
       margin:0;
@@ -65,50 +74,53 @@
       position:relative;
     }
 
-    #scanner video, #scanner canvas {
+    #scanner video,
+    #scanner canvas {
       width:100% !important;
       max-width:100% !important;
       border-radius:16px;
     }
 
-    .scan-guide {
+    .guide {
       position:absolute;
-      left:2%;
-      right:2%;
+      left:3%;
+      right:3%;
       top:42%;
       height:14%;
-      border:3px solid var(--yellow);
+      border:3px solid var(--white);
       border-radius:12px;
       pointer-events:none;
-      box-shadow:0 0 0 9999px rgba(0,0,0,0.22);
-      z-index:3;
+      box-shadow:0 0 0 9999px rgba(0,0,0,.22);
+      z-index:4;
     }
 
-    .scan-line {
+    .guide.success { border-color:var(--green); }
+    .guide.ocr { border-color:var(--yellow); height:30%; top:35%; }
+
+    .guide-line {
       position:absolute;
-      left:4%;
-      right:4%;
+      left:5%;
+      right:5%;
       top:49%;
       height:2px;
-      background:var(--yellow);
+      background:var(--white);
       pointer-events:none;
-      z-index:4;
+      z-index:5;
     }
 
-    .scan-label {
-      position:absolute;
-      left:0;
-      right:0;
-      top:calc(42% - 34px);
-      text-align:center;
-      color:var(--yellow);
-      font-weight:900;
+    .guide-line.success { background:var(--green); }
+    .guide-line.ocr { background:var(--yellow); }
+
+    .mode-message {
+      background:#020617;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:10px;
       font-size:14px;
-      text-shadow:0 2px 4px #000;
-      z-index:4;
+      line-height:1.5;
+      color:var(--text);
+      margin-top:10px;
     }
-
-    #imageReader { display:none; }
 
     .row {
       display:flex;
@@ -123,12 +135,12 @@
       padding:12px 14px;
       min-height:48px;
       color:white;
-      background:var(--panel2);
+      background:#1f2937;
       font-size:15px;
       font-weight:800;
     }
 
-    button:active { transform:scale(0.98); }
+    button:active { transform:scale(.98); }
     button:disabled { opacity:.45; }
 
     .btn-wide { flex:1 1 135px; }
@@ -138,7 +150,7 @@
     .btn-orange { background:var(--orange); }
     .btn-purple { background:var(--purple); }
 
-    select, input, textarea {
+    input, textarea {
       width:100%;
       border-radius:12px;
       border:1px solid var(--border);
@@ -149,14 +161,14 @@
     }
 
     textarea {
-      min-height:150px;
+      min-height:130px;
       font-size:13px;
       line-height:1.45;
     }
 
-    .status {
+    .status, .hint {
       color:var(--muted);
-      font-size:13px;
+      font-size:12px;
       line-height:1.5;
       margin:8px 0 0;
       white-space:pre-wrap;
@@ -208,14 +220,7 @@
     }
 
     .value-box { font-size:20px; }
-    .last { font-size:22px; min-height:54px; }
-
-    .hint {
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.5;
-      margin:8px 0 0;
-    }
+    .last { font-size:22px; }
 
     .sn-list {
       display:flex;
@@ -259,8 +264,6 @@
       margin-top:4px;
     }
 
-    .danger-zone { border-color:rgba(220,38,38,.7); }
-
     .candidate-box {
       display:flex;
       flex-wrap:wrap;
@@ -277,50 +280,66 @@
       color:var(--muted);
     }
 
-    .candidate strong {
-      color:var(--text);
+    .candidate strong { color:var(--text); }
+
+    .ocr-result {
+      background:#020617;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:10px;
+      margin-top:8px;
+      font-size:13px;
+      white-space:pre-wrap;
+      color:var(--muted);
     }
+
+    .danger-zone { border-color:rgba(220,38,38,.7); }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>Code128 限界強化読取</h1>
-    <p>Quagga2 / 2回一致で採用 / P・S・Q自動振り分け</p>
+    <h1>Code128 + OCR読取</h1>
+    <p>白枠=バーコード / 緑枠=成功 / 黄枠=写真OCR</p>
   </header>
 
   <main>
     <div class="panel">
       <div id="scanner">
-        <div class="scan-label">Code128を黄色枠に水平・全体表示</div>
-        <div class="scan-guide"></div>
-        <div class="scan-line"></div>
+        <div id="guide" class="guide"></div>
+        <div id="guideLine" class="guide-line"></div>
       </div>
-      <div id="imageReader"></div>
+
+      <div id="modeMessage" class="mode-message">
+        現在：バーコード読取モード  
+        P/N・S/N・QTYのCode128を白枠に合わせてください。読めたら緑枠になります。
+      </div>
+
       <p class="status" id="libraryStatus">読み取りライブラリ確認中...</p>
       <p class="status" id="status">未起動</p>
     </div>
 
     <div class="panel">
-      <div class="label">読み取り操作</div>
       <div class="row">
-        <button class="btn-blue btn-wide" id="startBtn">高精度ライブ開始</button>
+        <button class="btn-blue btn-wide" id="startBtn">バーコード読取開始</button>
         <button class="btn-red btn-wide" id="stopBtn">停止</button>
+        <button class="btn-orange btn-wide" id="ocrModeBtn">写真OCRモード</button>
       </div>
       <p class="hint">
-        長いS/Nは、左右端と白余白が切れないようにしてください。精度優先のため、同じ値を2回検出してから採用します。
+        長いS/Nバーコードが読めない場合は「写真OCRモード」に切り替え、P/N・S/Nの印字文字を撮影してください。
       </p>
     </div>
 
     <div class="panel">
-      <div class="label">写真から読取</div>
-      <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none;" />
+      <div class="label">写真OCR</div>
+      <input id="ocrPhotoInput" type="file" accept="image/*" capture="environment" style="display:none;" />
       <div class="row">
-        <button class="btn-green btn-wide" id="photoBtn">写真から読取</button>
+        <button class="btn-green btn-wide" id="ocrPhotoBtn">P/N・S/N文字を撮影してOCR</button>
       </div>
       <p class="hint">
-        ライブで読めない長いS/N用。バーコード全体・左右白余白・水平を意識してください。
+        黄色枠にバーコードではなく、印字文字の「P/N」と「S/N」を入れて撮影してください。
       </p>
+      <div class="ocr-result" id="ocrResult">OCR結果：未実行</div>
     </div>
 
     <div class="panel">
@@ -358,8 +377,8 @@
     </div>
 
     <div class="panel">
-      <div class="label">手入力追加</div>
-      <input id="manualInput" type="text" placeholder="P0247-08750W / SYCLWOMP-026C / Q1 など" autocomplete="off" autocapitalize="characters" />
+      <div class="label">手入力・修正入力</div>
+      <input id="manualInput" type="text" placeholder="P0200-29600 / S90001731420924C037 / Q1 など" autocomplete="off" autocapitalize="characters" />
       <div class="row" style="margin-top:8px;">
         <button class="btn-green btn-wide" id="manualAddBtn">手入力を判定追加</button>
         <button class="btn-orange btn-wide" id="undoBtn">最後のS/Nを戻す</button>
@@ -378,7 +397,7 @@
 
     <div class="panel">
       <div class="label">一括貼り付け解析</div>
-      <textarea id="bulkInput" placeholder="ICONIT等の読み取り結果をまとめて貼り付けて解析できます"></textarea>
+      <textarea id="bulkInput" placeholder="ICONIT等の読み取り結果を貼り付けて解析できます"></textarea>
       <div class="row" style="margin-top:8px;">
         <button class="btn-purple btn-wide" id="parseBulkBtn">貼り付け内容を解析</button>
         <button class="btn-red btn-wide" id="clearBulkBtn">貼り付け欄クリア</button>
@@ -405,11 +424,16 @@
   <script>
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
-    const photoBtn = document.getElementById("photoBtn");
-    const photoInput = document.getElementById("photoInput");
+    const ocrModeBtn = document.getElementById("ocrModeBtn");
+    const ocrPhotoBtn = document.getElementById("ocrPhotoBtn");
+    const ocrPhotoInput = document.getElementById("ocrPhotoInput");
 
+    const guide = document.getElementById("guide");
+    const guideLine = document.getElementById("guideLine");
+    const modeMessage = document.getElementById("modeMessage");
     const libraryStatus = document.getElementById("libraryStatus");
     const statusEl = document.getElementById("status");
+    const ocrResult = document.getElementById("ocrResult");
 
     const snCountValue = document.getElementById("snCountValue");
     const dupValue = document.getElementById("dupValue");
@@ -439,30 +463,47 @@
     const clearAllBtn = document.getElementById("clearAllBtn");
 
     let running = false;
-    let imageQrCode = null;
-
     let currentPN = "";
     let currentQty = "";
     let serials = [];
     let others = [];
-
     let detectCount = 0;
     let dupCount = 0;
-
     let candidates = {};
     const CONFIRM_COUNT = 2;
 
-    function setStatus(msg) {
-      statusEl.textContent = msg;
+    function setStatus(msg) { statusEl.textContent = msg; }
+
+    function setFrame(mode) {
+      guide.classList.remove("success", "ocr");
+      guideLine.classList.remove("success", "ocr");
+
+      if (mode === "success") {
+        guide.classList.add("success");
+        guideLine.classList.add("success");
+        setTimeout(() => setFrame("normal"), 650);
+      }
+
+      if (mode === "ocr") {
+        guide.classList.add("ocr");
+        guideLine.classList.add("ocr");
+        modeMessage.textContent =
+          "現在：写真OCRモード\nバーコードではなく、P/N・S/Nの印字文字を黄色枠内に入れて撮影してください。";
+      }
+
+      if (mode === "normal") {
+        modeMessage.textContent =
+          "現在：バーコード読取モード\nP/N・S/N・QTYのCode128を白枠に合わせてください。読めたら緑枠になります。";
+      }
     }
 
     function checkLibraries() {
       const qOk = !!window.Quagga;
-      const hOk = !!window.Html5Qrcode;
+      const tOk = !!window.Tesseract;
 
       libraryStatus.innerHTML =
         `Quagga2：${qOk ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}\n` +
-        `html5-qrcode：${hOk ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}`;
+        `OCR：${tOk ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}`;
 
       return qOk;
     }
@@ -479,8 +520,7 @@
     }
 
     function splitToTokens(text) {
-      const cleaned = cleanToken(text);
-      return cleaned
+      return cleanToken(text)
         .split(/[\n\r\t,; ]+/)
         .map(x => normalizeCode(x))
         .filter(Boolean)
@@ -491,15 +531,15 @@
     function nowText() {
       const d = new Date();
       const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
-      const ss = String(d.getSeconds()).padStart(2, "0");
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      const ss = String(d.getSeconds()).padStart(2,"0");
       return `${y}/${m}/${day} ${hh}:${mm}:${ss}`;
     }
 
-    function beep(freq = 880, duration = 90) {
+    function beep(freq=880,duration=90) {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
@@ -507,33 +547,27 @@
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.frequency.value = freq;
-        gain.gain.value = 0.08;
+        gain.gain.value = .08;
         osc.start();
-        setTimeout(() => {
-          osc.stop();
-          ctx.close();
-        }, duration);
+        setTimeout(() => { osc.stop(); ctx.close(); }, duration);
       } catch(e) {}
     }
 
-    function vibrate(ms = 60) {
-      try {
-        if (navigator.vibrate) navigator.vibrate(ms);
-      } catch(e) {}
+    function vibrate(ms=60) {
+      try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e) {}
     }
 
     function renderCandidates() {
       candidateBox.innerHTML = "";
-      const entries = Object.entries(candidates)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-
-      entries.forEach(([key, count]) => {
-        const div = document.createElement("div");
-        div.className = "candidate";
-        div.innerHTML = `<strong>${key}</strong>：${count}/${CONFIRM_COUNT}`;
-        candidateBox.appendChild(div);
-      });
+      Object.entries(candidates)
+        .sort((a,b) => b[1]-a[1])
+        .slice(0,5)
+        .forEach(([key,count]) => {
+          const div = document.createElement("div");
+          div.className = "candidate";
+          div.innerHTML = `<strong>${key}</strong>：${count}/${CONFIRM_COUNT}`;
+          candidateBox.appendChild(div);
+        });
     }
 
     function render() {
@@ -555,12 +589,10 @@
       } else {
         serials.slice().reverse().forEach((item, revIndex) => {
           const originalIndex = serials.length - 1 - revIndex;
-
           const row = document.createElement("div");
           row.className = "sn-item";
 
           const left = document.createElement("div");
-
           const code = document.createElement("div");
           code.className = "sn-code";
           code.textContent = `${originalIndex + 1}. ${item.value}`;
@@ -576,7 +608,7 @@
           del.className = "btn-red";
           del.textContent = "削除";
           del.onclick = () => {
-            serials.splice(originalIndex, 1);
+            serials.splice(originalIndex,1);
             render();
             makeOutput();
           };
@@ -608,21 +640,20 @@
       const sn = normalizeCode(value);
       if (!sn) return;
 
-      const exists = serials.some(x => x.value === sn);
-
-      if (exists) {
-        dupCount += 1;
+      if (serials.some(x => x.value === sn)) {
+        dupCount++;
         lastJudgement.textContent = `重複S/Nのため除外：${sn}`;
-        beep(330, 120);
+        beep(330,120);
         vibrate(120);
         render();
         return;
       }
 
-      serials.push({ value: sn, source, time: nowText() });
+      serials.push({ value:sn, source, time:nowText() });
       lastValue.textContent = sn;
       lastJudgement.textContent = `S/Nとして追加：${sn}`;
-      beep(940, 80);
+      setFrame("success");
+      beep(940,80);
       vibrate(50);
       render();
       makeOutput();
@@ -644,7 +675,8 @@
       if (/^P.+/i.test(value)) {
         currentPN = value.substring(1);
         lastJudgement.textContent = `P/Nとして設定：${currentPN}`;
-        beep(700, 80);
+        setFrame("success");
+        beep(700,80);
         render();
         makeOutput();
         return;
@@ -658,7 +690,8 @@
       if (/^Q\d+$/i.test(value)) {
         currentQty = value.substring(1);
         lastJudgement.textContent = `数量として設定：${currentQty}`;
-        beep(620, 80);
+        setFrame("success");
+        beep(620,80);
         render();
         makeOutput();
         return;
@@ -673,13 +706,12 @@
       const code = normalizeCode(value);
       if (!code) return;
 
-      detectCount += 1;
-
+      detectCount++;
       candidates[code] = (candidates[code] || 0) + 1;
 
       if (candidates[code] >= CONFIRM_COUNT) {
         candidates = {};
-        judgeAndAdd(code, "QUAGGA");
+        judgeAndAdd(code, "BARCODE");
       }
 
       render();
@@ -687,16 +719,12 @@
 
     function handleQuaggaDetection(result) {
       if (!result || !result.codeResult || !result.codeResult.code) return;
-
-      const code = normalizeCode(result.codeResult.code);
-      if (!code) return;
-
-      confirmCandidate(code);
+      confirmCandidate(result.codeResult.code);
     }
 
     function startQuagga() {
       if (!checkLibraries()) {
-        alert("Quagga2が読み込めていません。通信状態を確認して再読み込みしてください。");
+        alert("読み取りライブラリが読み込めていません。再読み込みしてください。");
         return;
       }
 
@@ -705,46 +733,46 @@
         return;
       }
 
-      const scanner = document.querySelector("#scanner");
+      setFrame("normal");
 
       Quagga.init({
         inputStream: {
-          type: "LiveStream",
-          target: scanner,
-          constraints: {
-            facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+          type:"LiveStream",
+          target:document.querySelector("#scanner"),
+          constraints:{
+            facingMode:"environment",
+            width:{ ideal:1920 },
+            height:{ ideal:1080 }
           },
-          area: {
-            top: "35%",
-            right: "0%",
-            left: "0%",
-            bottom: "35%"
+          area:{
+            top:"35%",
+            right:"0%",
+            left:"0%",
+            bottom:"35%"
           }
         },
-        locator: {
-          patchSize: "x-large",
-          halfSample: false
+        locator:{
+          patchSize:"x-large",
+          halfSample:false
         },
-        numOfWorkers: navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 2,
-        frequency: 12,
-        decoder: {
-          readers: ["code_128_reader"],
-          multiple: false
+        numOfWorkers:navigator.hardwareConcurrency ? Math.min(4,navigator.hardwareConcurrency) : 2,
+        frequency:12,
+        decoder:{
+          readers:["code_128_reader"],
+          multiple:false
         },
-        locate: true
+        locate:true
       }, function(err) {
         if (err) {
           console.error(err);
-          setStatus("Quagga起動エラー: " + err.message);
-          alert("起動できませんでした: " + err.message);
+          setStatus("起動エラー：" + err.message);
+          alert("起動できませんでした：" + err.message);
           return;
         }
 
         Quagga.start();
         running = true;
-        setStatus("高精度ライブ読取中：Code128を黄色枠に水平・全体表示してください。");
+        setStatus("バーコード読取中：白枠にCode128全体を水平に入れてください。");
       });
 
       Quagga.offDetected(handleQuaggaDetection);
@@ -760,66 +788,94 @@
         running = false;
         setStatus("停止しました。");
       } catch(e) {
-        setStatus("停止エラー: " + e.message);
+        setStatus("停止エラー：" + e.message);
       }
     }
 
     function parseBulkText() {
-      const text = bulkInput.value || "";
-      const tokens = splitToTokens(text);
-
+      const tokens = splitToTokens(bulkInput.value || "");
       if (tokens.length === 0) {
         alert("解析するデータがありません。");
         return;
       }
-
-      tokens.forEach(token => judgeAndAdd(token, "PASTE"));
+      tokens.forEach(t => judgeAndAdd(t,"PASTE"));
       setStatus(`貼り付け解析完了：${tokens.length}個を処理しました。`);
     }
 
-    async function scanPhotoFile(file) {
+    function extractByOcrText(text) {
+      const raw = String(text || "");
+      const normalized = raw
+        .replace(/[　]/g," ")
+        .replace(/\r/g,"\n")
+        .replace(/[：]/g,":");
+
+      let pn = "";
+      let sn = "";
+
+      const pnMatch =
+        normalized.match(/P\/?N[:\s]*([A-Z0-9\-]+)/i) ||
+        normalized.match(/\(P\)\s*P\/?N[:\s]*([A-Z0-9\-]+)/i);
+
+      const snMatch =
+        normalized.match(/S\/?N[:\s]*([A-Z0-9\-]+)/i) ||
+        normalized.match(/\(S\)\s*S\/?N[:\s]*([A-Z0-9\-]+)/i);
+
+      if (pnMatch) pn = normalizeCode(pnMatch[1]);
+      if (snMatch) sn = normalizeCode(snMatch[1]);
+
+      return { pn, sn, raw };
+    }
+
+    async function runOcr(file) {
+      if (!file) return;
+
+      if (!window.Tesseract) {
+        alert("OCRライブラリが読み込めていません。");
+        return;
+      }
+
+      setFrame("ocr");
+      setStatus("OCR解析中です。少し待ってください。");
+      ocrResult.textContent = "OCR解析中...";
+
       try {
-        if (!file) return;
+        const result = await Tesseract.recognize(file, "eng", {
+          logger: m => {
+            if (m.status) {
+              setStatus(`OCR解析中：${m.status} ${m.progress ? Math.round(m.progress * 100) + "%" : ""}`);
+            }
+          }
+        });
 
-        if (!window.Html5Qrcode) {
-          alert("写真読取ライブラリが読み込めていません。");
-          return;
+        const text = result.data.text || "";
+        const extracted = extractByOcrText(text);
+
+        ocrResult.textContent =
+          "OCR候補\n" +
+          `P/N: ${extracted.pn || "未検出"}\n` +
+          `S/N: ${extracted.sn || "未検出"}\n\n` +
+          "OCR全文:\n" + extracted.raw;
+
+        if (extracted.pn) {
+          judgeAndAdd("P" + extracted.pn, "OCR");
         }
 
-        setStatus("写真を解析中...");
-
-        if (imageQrCode) {
-          try { await imageQrCode.clear(); } catch(e) {}
+        if (extracted.sn) {
+          judgeAndAdd("S" + extracted.sn, "OCR");
         }
 
-        imageQrCode = new Html5Qrcode("imageReader");
-
-        const decodedText = await imageQrCode.scanFile(file, false);
-        const tokens = splitToTokens(decodedText);
-
-        if (tokens.length > 1) {
-          tokens.forEach(token => judgeAndAdd(token, "PHOTO"));
+        if (!extracted.pn && !extracted.sn) {
+          alert("P/N・S/NをOCRで検出できませんでした。撮り直すか手入力してください。");
         } else {
-          judgeAndAdd(decodedText, "PHOTO");
+          setStatus("OCR読取完了。候補を確認してください。");
         }
 
-        setStatus("写真から読取成功。");
-
-        try { await imageQrCode.clear(); } catch(e) {}
-
-      } catch(err) {
-        console.error(err);
-        setStatus("写真から読取不可: " + err.message);
-        alert(
-          "写真から読めませんでした。\n\n" +
-          "1. バーコード全体を入れる\n" +
-          "2. 左右の白余白も入れる\n" +
-          "3. 水平にする\n" +
-          "4. 反射を避ける\n" +
-          "5. 近すぎる場合は少し離す"
-        );
+      } catch(e) {
+        console.error(e);
+        setStatus("OCRエラー：" + e.message);
+        alert("OCRに失敗しました。撮り直してください。");
       } finally {
-        photoInput.value = "";
+        ocrPhotoInput.value = "";
       }
     }
 
@@ -829,8 +885,7 @@
         alert("追加する値を入力してください。");
         return;
       }
-
-      judgeAndAdd(value, "MANUAL");
+      judgeAndAdd(value,"MANUAL");
       manualInput.value = "";
       manualInput.focus();
     }
@@ -840,7 +895,6 @@
         setStatus("戻すS/Nがありません。");
         return;
       }
-
       const removed = serials.pop();
       setStatus(`最後のS/Nを戻しました：${removed.value}`);
       render();
@@ -858,12 +912,10 @@
 
     async function copyOutput() {
       makeOutput();
-
       if (!outputText.value) {
         alert("コピーする出力がありません。");
         return;
       }
-
       try {
         await navigator.clipboard.writeText(outputText.value);
         setStatus("出力をコピーしました。");
@@ -876,14 +928,14 @@
 
     function escapeCsv(value) {
       const s = String(value ?? "");
-      return '"' + s.replace(/"/g, '""') + '"';
+      return '"' + s.replace(/"/g,'""') + '"';
     }
 
     function downloadCsv() {
       const lines = [];
-      lines.push(["No", "P/N", "S/N", "QTY", "Source", "ReadTime"].map(escapeCsv).join(","));
+      lines.push(["No","P/N","S/N","QTY","Source","ReadTime"].map(escapeCsv).join(","));
 
-      serials.forEach((item, index) => {
+      serials.forEach((item,index) => {
         lines.push([
           index + 1,
           currentPN,
@@ -900,14 +952,14 @@
 
       const d = new Date();
       const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      const hh = String(d.getHours()).padStart(2, "0");
-      const mm = String(d.getMinutes()).padStart(2, "0");
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `code128_max_${y}${m}${day}_${hh}${mm}.csv`;
+      a.download = `code128_ocr_${y}${m}${day}_${hh}${mm}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -930,6 +982,7 @@
       lastValue.textContent = "未読み取り";
       lastJudgement.textContent = "判定待ち";
       outputText.value = "";
+      ocrResult.textContent = "OCR結果：未実行";
 
       render();
       setStatus("全クリアしました。");
@@ -938,10 +991,19 @@
     startBtn.addEventListener("click", startQuagga);
     stopBtn.addEventListener("click", stopQuagga);
 
-    photoBtn.addEventListener("click", () => photoInput.click());
-    photoInput.addEventListener("change", e => {
+    ocrModeBtn.addEventListener("click", () => {
+      setFrame("ocr");
+      setStatus("写真OCRモード：P/N・S/Nの印字文字を黄色枠に入れて撮影してください。");
+    });
+
+    ocrPhotoBtn.addEventListener("click", () => {
+      setFrame("ocr");
+      ocrPhotoInput.click();
+    });
+
+    ocrPhotoInput.addEventListener("change", e => {
       const file = e.target.files && e.target.files[0];
-      scanPhotoFile(file);
+      runOcr(file);
     });
 
     manualAddBtn.addEventListener("click", addManual);
