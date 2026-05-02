@@ -85,23 +85,24 @@
       position:absolute;
       left:3%;
       right:3%;
-      top:42%;
-      height:14%;
+      top:38%;
+      height:18%;
       border:3px solid var(--white);
       border-radius:12px;
       pointer-events:none;
-      box-shadow:0 0 0 9999px rgba(0,0,0,.22);
+      box-shadow:0 0 0 9999px rgba(0,0,0,.20);
       z-index:4;
     }
 
     .guide.success { border-color:var(--green); }
-    .guide.ocr { border-color:var(--yellow); height:30%; top:35%; }
+    .guide.ocr { border-color:var(--yellow); }
+    .guide.warn { border-color:var(--yellow); }
 
     .guide-line {
       position:absolute;
       left:5%;
       right:5%;
-      top:49%;
+      top:47%;
       height:2px;
       background:var(--white);
       pointer-events:none;
@@ -110,6 +111,7 @@
 
     .guide-line.success { background:var(--green); }
     .guide-line.ocr { background:var(--yellow); }
+    .guide-line.warn { background:var(--yellow); }
 
     .mode-message {
       background:#020617;
@@ -120,6 +122,22 @@
       line-height:1.5;
       color:var(--text);
       margin-top:10px;
+    }
+
+    .timeout-panel {
+      display:none;
+      background:#3b2f00;
+      border:1px solid var(--yellow);
+      border-radius:14px;
+      padding:10px;
+      margin-top:10px;
+      color:#fff7cc;
+      font-size:14px;
+      line-height:1.5;
+    }
+
+    .timeout-panel.show {
+      display:block;
     }
 
     .row {
@@ -300,7 +318,7 @@
 <body>
   <header>
     <h1>Code128 + OCR読取</h1>
-    <p>白枠=バーコード / 緑枠=成功 / 黄枠=写真OCR</p>
+    <p>白枠=バーコード / 緑枠=成功 / 黄枠=OCR・読取不可</p>
   </header>
 
   <main>
@@ -315,6 +333,15 @@
         P/N・S/N・QTYのCode128を白枠に合わせてください。読めたら緑枠になります。
       </div>
 
+      <div id="timeoutPanel" class="timeout-panel">
+        読み取りできませんでした。長いS/N・反射・ピントずれの可能性があります。  
+        OCRモードに切り替えるか、もう一度バーコードで試してください。
+        <div class="row" style="margin-top:8px;">
+          <button class="btn-orange btn-wide" id="timeoutOcrBtn">OCRモードへ</button>
+          <button class="btn-blue btn-wide" id="timeoutRetryBtn">バーコード再試行</button>
+        </div>
+      </div>
+
       <p class="status" id="libraryStatus">読み取りライブラリ確認中...</p>
       <p class="status" id="status">未起動</p>
     </div>
@@ -323,21 +350,20 @@
       <div class="row">
         <button class="btn-blue btn-wide" id="startBtn">バーコード読取開始</button>
         <button class="btn-red btn-wide" id="stopBtn">停止</button>
-        <button class="btn-orange btn-wide" id="ocrModeBtn">写真OCRモード</button>
+        <button class="btn-orange btn-wide" id="ocrModeBtn">OCRモード</button>
       </div>
       <p class="hint">
-        長いS/Nバーコードが読めない場合は「写真OCRモード」に切り替え、P/N・S/Nの印字文字を撮影してください。
+        10秒読めない場合はOCR切替案内を表示します。
       </p>
     </div>
 
     <div class="panel">
-      <div class="label">写真OCR</div>
-      <input id="ocrPhotoInput" type="file" accept="image/*" capture="environment" style="display:none;" />
+      <div class="label">OCR撮影</div>
       <div class="row">
-        <button class="btn-green btn-wide" id="ocrPhotoBtn">P/N・S/N文字を撮影してOCR</button>
+        <button class="btn-green btn-wide" id="ocrShotBtn">シャッターOCR</button>
       </div>
       <p class="hint">
-        黄色枠にバーコードではなく、印字文字の「P/N」と「S/N」を入れて撮影してください。
+        OCRモードでは、バーコードではなくP/N・S/Nの印字文字を黄色枠内に入れて「シャッターOCR」を押してください。
       </p>
       <div class="ocr-result" id="ocrResult">OCR結果：未実行</div>
     </div>
@@ -425,8 +451,11 @@
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const ocrModeBtn = document.getElementById("ocrModeBtn");
-    const ocrPhotoBtn = document.getElementById("ocrPhotoBtn");
-    const ocrPhotoInput = document.getElementById("ocrPhotoInput");
+    const ocrShotBtn = document.getElementById("ocrShotBtn");
+
+    const timeoutPanel = document.getElementById("timeoutPanel");
+    const timeoutOcrBtn = document.getElementById("timeoutOcrBtn");
+    const timeoutRetryBtn = document.getElementById("timeoutRetryBtn");
 
     const guide = document.getElementById("guide");
     const guideLine = document.getElementById("guideLine");
@@ -463,6 +492,8 @@
     const clearAllBtn = document.getElementById("clearAllBtn");
 
     let running = false;
+    let currentMode = "barcode";
+
     let currentPN = "";
     let currentQty = "";
     let serials = [];
@@ -470,31 +501,104 @@
     let detectCount = 0;
     let dupCount = 0;
     let candidates = {};
-    const CONFIRM_COUNT = 2;
 
-    function setStatus(msg) { statusEl.textContent = msg; }
+    const CONFIRM_COUNT = 2;
+    const READ_TIMEOUT_MS = 10000;
+
+    let lastSuccessAt = 0;
+    let timeoutTimer = null;
+    let timeoutShown = false;
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
 
     function setFrame(mode) {
-      guide.classList.remove("success", "ocr");
-      guideLine.classList.remove("success", "ocr");
+      guide.classList.remove("success", "ocr", "warn");
+      guideLine.classList.remove("success", "ocr", "warn");
 
       if (mode === "success") {
         guide.classList.add("success");
         guideLine.classList.add("success");
-        setTimeout(() => setFrame("normal"), 650);
+        setTimeout(() => {
+          if (currentMode === "barcode") setFrame("normal");
+          if (currentMode === "ocr") setFrame("ocr");
+        }, 650);
       }
 
       if (mode === "ocr") {
         guide.classList.add("ocr");
         guideLine.classList.add("ocr");
         modeMessage.textContent =
-          "現在：写真OCRモード\nバーコードではなく、P/N・S/Nの印字文字を黄色枠内に入れて撮影してください。";
+          "現在：OCRモード\nP/N・S/Nの印字文字を黄色枠内に入れて、シャッターOCRを押してください。";
+      }
+
+      if (mode === "warn") {
+        guide.classList.add("warn");
+        guideLine.classList.add("warn");
       }
 
       if (mode === "normal") {
         modeMessage.textContent =
           "現在：バーコード読取モード\nP/N・S/N・QTYのCode128を白枠に合わせてください。読めたら緑枠になります。";
       }
+    }
+
+    function showTimeoutPanel() {
+      if (currentMode !== "barcode") return;
+      if (!running) return;
+      if (timeoutShown) return;
+
+      timeoutShown = true;
+      timeoutPanel.classList.add("show");
+      setFrame("warn");
+      setStatus("10秒間読み取り成功がありません。OCRモードへの切替を推奨します。");
+    }
+
+    function hideTimeoutPanel() {
+      timeoutPanel.classList.remove("show");
+      timeoutShown = false;
+    }
+
+    function resetReadTimer() {
+      lastSuccessAt = Date.now();
+      hideTimeoutPanel();
+    }
+
+    function startReadTimeoutWatcher() {
+      stopReadTimeoutWatcher();
+      lastSuccessAt = Date.now();
+      timeoutShown = false;
+
+      timeoutTimer = setInterval(() => {
+        if (!running || currentMode !== "barcode") return;
+        const elapsed = Date.now() - lastSuccessAt;
+        if (elapsed >= READ_TIMEOUT_MS) {
+          showTimeoutPanel();
+        }
+      }, 1000);
+    }
+
+    function stopReadTimeoutWatcher() {
+      if (timeoutTimer) {
+        clearInterval(timeoutTimer);
+        timeoutTimer = null;
+      }
+    }
+
+    function switchToOcrMode() {
+      currentMode = "ocr";
+      hideTimeoutPanel();
+      setFrame("ocr");
+      setStatus("OCRモード：印字文字のP/N・S/Nを黄色枠内に入れてシャッターOCRを押してください。");
+    }
+
+    function switchToBarcodeMode() {
+      currentMode = "barcode";
+      hideTimeoutPanel();
+      setFrame("normal");
+      resetReadTimer();
+      setStatus("バーコード読取モード：白枠にCode128全体を入れてください。");
     }
 
     function checkLibraries() {
@@ -653,6 +757,7 @@
       lastValue.textContent = sn;
       lastJudgement.textContent = `S/Nとして追加：${sn}`;
       setFrame("success");
+      resetReadTimer();
       beep(940,80);
       vibrate(50);
       render();
@@ -676,6 +781,7 @@
         currentPN = value.substring(1);
         lastJudgement.textContent = `P/Nとして設定：${currentPN}`;
         setFrame("success");
+        resetReadTimer();
         beep(700,80);
         render();
         makeOutput();
@@ -691,6 +797,7 @@
         currentQty = value.substring(1);
         lastJudgement.textContent = `数量として設定：${currentQty}`;
         setFrame("success");
+        resetReadTimer();
         beep(620,80);
         render();
         makeOutput();
@@ -703,6 +810,8 @@
     }
 
     function confirmCandidate(value) {
+      if (currentMode !== "barcode") return;
+
       const code = normalizeCode(value);
       if (!code) return;
 
@@ -729,11 +838,13 @@
       }
 
       if (running) {
-        setStatus("すでに起動中です。");
+        switchToBarcodeMode();
         return;
       }
 
+      currentMode = "barcode";
       setFrame("normal");
+      hideTimeoutPanel();
 
       Quagga.init({
         inputStream: {
@@ -745,10 +856,10 @@
             height:{ ideal:1080 }
           },
           area:{
-            top:"35%",
+            top:"34%",
             right:"0%",
             left:"0%",
-            bottom:"35%"
+            bottom:"34%"
           }
         },
         locator:{
@@ -772,6 +883,8 @@
 
         Quagga.start();
         running = true;
+        resetReadTimer();
+        startReadTimeoutWatcher();
         setStatus("バーコード読取中：白枠にCode128全体を水平に入れてください。");
       });
 
@@ -786,6 +899,8 @@
           Quagga.stop();
         }
         running = false;
+        stopReadTimeoutWatcher();
+        hideTimeoutPanel();
         setStatus("停止しました。");
       } catch(e) {
         setStatus("停止エラー：" + e.message);
@@ -802,23 +917,50 @@
       setStatus(`貼り付け解析完了：${tokens.length}個を処理しました。`);
     }
 
+    function captureCurrentFrameBlob() {
+      return new Promise((resolve, reject) => {
+        const video = document.querySelector("#scanner video");
+
+        if (!video || video.readyState < 2) {
+          reject(new Error("カメラ映像を取得できません。バーコード読取開始後にOCRしてください。"));
+          return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || video.clientWidth;
+        canvas.height = video.videoHeight || video.clientHeight;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(blob => {
+          if (!blob) {
+            reject(new Error("画像化に失敗しました。"));
+            return;
+          }
+          resolve(blob);
+        }, "image/jpeg", 0.95);
+      });
+    }
+
     function extractByOcrText(text) {
       const raw = String(text || "");
       const normalized = raw
         .replace(/[　]/g," ")
         .replace(/\r/g,"\n")
-        .replace(/[：]/g,":");
+        .replace(/[：]/g,":")
+        .replace(/O/g, "0");
 
       let pn = "";
       let sn = "";
 
       const pnMatch =
-        normalized.match(/P\/?N[:\s]*([A-Z0-9\-]+)/i) ||
-        normalized.match(/\(P\)\s*P\/?N[:\s]*([A-Z0-9\-]+)/i);
+        normalized.match(/\(P\)\s*P\/?N[:\s]*([A-Z0-9\-]+)/i) ||
+        normalized.match(/P\/?N[:\s]*([A-Z0-9\-]+)/i);
 
       const snMatch =
-        normalized.match(/S\/?N[:\s]*([A-Z0-9\-]+)/i) ||
-        normalized.match(/\(S\)\s*S\/?N[:\s]*([A-Z0-9\-]+)/i);
+        normalized.match(/\(S\)\s*S\/?N[:\s]*([A-Z0-9\-]+)/i) ||
+        normalized.match(/S\/?N[:\s]*([A-Z0-9\-]+)/i);
 
       if (pnMatch) pn = normalizeCode(pnMatch[1]);
       if (snMatch) sn = normalizeCode(snMatch[1]);
@@ -826,20 +968,21 @@
       return { pn, sn, raw };
     }
 
-    async function runOcr(file) {
-      if (!file) return;
-
+    async function runOcrFromCurrentFrame() {
       if (!window.Tesseract) {
         alert("OCRライブラリが読み込めていません。");
         return;
       }
 
-      setFrame("ocr");
-      setStatus("OCR解析中です。少し待ってください。");
-      ocrResult.textContent = "OCR解析中...";
+      switchToOcrMode();
 
       try {
-        const result = await Tesseract.recognize(file, "eng", {
+        setStatus("シャッターOCR実行中です。少し待ってください。");
+        ocrResult.textContent = "OCR解析中...";
+
+        const blob = await captureCurrentFrameBlob();
+
+        const result = await Tesseract.recognize(blob, "eng", {
           logger: m => {
             if (m.status) {
               setStatus(`OCR解析中：${m.status} ${m.progress ? Math.round(m.progress * 100) + "%" : ""}`);
@@ -865,7 +1008,7 @@
         }
 
         if (!extracted.pn && !extracted.sn) {
-          alert("P/N・S/NをOCRで検出できませんでした。撮り直すか手入力してください。");
+          alert("P/N・S/NをOCRで検出できませんでした。位置を合わせ直すか手入力してください。");
         } else {
           setStatus("OCR読取完了。候補を確認してください。");
         }
@@ -873,9 +1016,7 @@
       } catch(e) {
         console.error(e);
         setStatus("OCRエラー：" + e.message);
-        alert("OCRに失敗しました。撮り直してください。");
-      } finally {
-        ocrPhotoInput.value = "";
+        alert(e.message || "OCRに失敗しました。");
       }
     }
 
@@ -959,7 +1100,7 @@
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `code128_ocr_${y}${m}${day}_${hh}${mm}.csv`;
+      a.download = `code128_ocr_timer_${y}${m}${day}_${hh}${mm}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -991,19 +1132,12 @@
     startBtn.addEventListener("click", startQuagga);
     stopBtn.addEventListener("click", stopQuagga);
 
-    ocrModeBtn.addEventListener("click", () => {
-      setFrame("ocr");
-      setStatus("写真OCRモード：P/N・S/Nの印字文字を黄色枠に入れて撮影してください。");
-    });
+    ocrModeBtn.addEventListener("click", switchToOcrMode);
+    ocrShotBtn.addEventListener("click", runOcrFromCurrentFrame);
 
-    ocrPhotoBtn.addEventListener("click", () => {
-      setFrame("ocr");
-      ocrPhotoInput.click();
-    });
-
-    ocrPhotoInput.addEventListener("change", e => {
-      const file = e.target.files && e.target.files[0];
-      runOcr(file);
+    timeoutOcrBtn.addEventListener("click", switchToOcrMode);
+    timeoutRetryBtn.addEventListener("click", () => {
+      switchToBarcodeMode();
     });
 
     manualAddBtn.addEventListener("click", addManual);
