@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Code128 + OCR Reader</title>
 
-  <!-- Code128ライブ読取 -->
   <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
-
-  <!-- 写真OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
@@ -16,6 +13,7 @@
       --bg:#0f172a;
       --head:#020617;
       --panel:#111827;
+      --card:#020617;
       --text:#f9fafb;
       --muted:#9ca3af;
       --border:#374151;
@@ -40,58 +38,72 @@
     header {
       background:var(--head);
       border-bottom:1px solid var(--border);
-      padding:12px;
+      padding:10px 12px;
       text-align:center;
       position:sticky;
       top:0;
-      z-index:10;
+      z-index:20;
     }
 
-    header h1 { margin:0; font-size:19px; }
-    header p { margin:5px 0 0; font-size:12px; color:var(--muted); }
+    header h1 {
+      margin:0;
+      font-size:18px;
+      line-height:1.2;
+    }
+
+    header p {
+      margin:4px 0 0;
+      font-size:12px;
+      color:var(--muted);
+    }
 
     main {
-      padding:10px;
+      padding:8px;
       max-width:920px;
       margin:0 auto;
     }
 
-    .panel {
+    .camera-panel {
       background:var(--panel);
       border:1px solid var(--border);
       border-radius:16px;
-      padding:12px;
-      margin-top:10px;
+      padding:8px;
+      margin-bottom:8px;
     }
 
     #scanner {
       width:100%;
-      min-height:340px;
+      height:46vh;
+      min-height:310px;
+      max-height:470px;
       background:#000;
       border:1px solid var(--border);
       border-radius:16px;
       overflow:hidden;
       position:relative;
+      touch-action:manipulation;
     }
 
     #scanner video,
     #scanner canvas {
       width:100% !important;
+      height:100% !important;
       max-width:100% !important;
+      object-fit:cover;
       border-radius:16px;
     }
 
     .guide {
       position:absolute;
-      left:3%;
-      right:3%;
-      top:38%;
-      height:18%;
+      left:4%;
+      right:4%;
+      top:32%;
+      height:24%;
       border:3px solid var(--white);
-      border-radius:12px;
+      border-radius:14px;
       pointer-events:none;
-      box-shadow:0 0 0 9999px rgba(0,0,0,.20);
-      z-index:4;
+      box-shadow:0 0 0 9999px rgba(0,0,0,.18);
+      z-index:5;
     }
 
     .guide.success { border-color:var(--green); }
@@ -100,28 +112,56 @@
 
     .guide-line {
       position:absolute;
-      left:5%;
-      right:5%;
-      top:47%;
+      left:6%;
+      right:6%;
+      top:44%;
       height:2px;
       background:var(--white);
       pointer-events:none;
-      z-index:5;
+      z-index:6;
     }
 
     .guide-line.success { background:var(--green); }
     .guide-line.ocr { background:var(--yellow); }
     .guide-line.warn { background:var(--yellow); }
 
-    .mode-message {
-      background:#020617;
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:10px;
-      font-size:14px;
-      line-height:1.5;
-      color:var(--text);
-      margin-top:10px;
+    .camera-status {
+      position:absolute;
+      left:10px;
+      right:10px;
+      top:10px;
+      background:rgba(2,6,23,.82);
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:12px;
+      padding:8px 10px;
+      font-size:13px;
+      line-height:1.35;
+      z-index:7;
+      pointer-events:none;
+    }
+
+    .shutter {
+      position:absolute;
+      left:50%;
+      bottom:12px;
+      transform:translateX(-50%);
+      width:74px;
+      height:74px;
+      border-radius:999px;
+      border:4px solid rgba(255,255,255,.9);
+      background:rgba(22,163,74,.95);
+      color:#fff;
+      font-size:13px;
+      font-weight:900;
+      z-index:8;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 8px 20px rgba(0,0,0,.45);
+    }
+
+    .shutter.show {
+      display:flex;
     }
 
     .timeout-panel {
@@ -130,14 +170,76 @@
       border:1px solid var(--yellow);
       border-radius:14px;
       padding:10px;
-      margin-top:10px;
+      margin-top:8px;
       color:#fff7cc;
-      font-size:14px;
+      font-size:13px;
       line-height:1.5;
     }
 
-    .timeout-panel.show {
-      display:block;
+    .timeout-panel.show { display:block; }
+
+    .panel {
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:10px;
+      margin-top:8px;
+    }
+
+    .compact-grid {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+
+    .summary-grid {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+    }
+
+    .value-box,
+    .last,
+    .metric {
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:10px;
+    }
+
+    .label {
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:5px;
+    }
+
+    .value-box {
+      font-size:19px;
+      font-weight:900;
+      min-height:48px;
+      word-break:break-all;
+    }
+
+    .last {
+      font-size:22px;
+      font-weight:900;
+      min-height:54px;
+      word-break:break-all;
+    }
+
+    .metric {
+      text-align:center;
+    }
+
+    .metric .num {
+      font-size:24px;
+      font-weight:900;
+      line-height:1.1;
+    }
+
+    .metric .label {
+      margin-top:4px;
+      margin-bottom:0;
     }
 
     .row {
@@ -159,7 +261,6 @@
     }
 
     button:active { transform:scale(.98); }
-    button:disabled { opacity:.45; }
 
     .btn-wide { flex:1 1 135px; }
     .btn-blue { background:var(--blue); }
@@ -179,7 +280,7 @@
     }
 
     textarea {
-      min-height:130px;
+      min-height:120px;
       font-size:13px;
       line-height:1.45;
     }
@@ -194,51 +295,6 @@
 
     .ok { color:#86efac; font-weight:800; }
     .ng { color:#fca5a5; font-weight:800; }
-
-    .grid3 {
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:8px;
-    }
-
-    .metric {
-      background:#020617;
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:10px;
-      text-align:center;
-    }
-
-    .metric .num {
-      font-size:26px;
-      font-weight:900;
-      line-height:1.1;
-    }
-
-    .metric .label {
-      color:var(--muted);
-      font-size:12px;
-      margin-top:4px;
-    }
-
-    .label {
-      color:var(--muted);
-      font-size:13px;
-      margin-bottom:5px;
-    }
-
-    .value-box, .last {
-      background:#020617;
-      border:1px solid var(--border);
-      border-radius:14px;
-      padding:12px;
-      font-weight:900;
-      min-height:50px;
-      word-break:break-all;
-    }
-
-    .value-box { font-size:20px; }
-    .last { font-size:22px; }
 
     .sn-list {
       display:flex;
@@ -270,6 +326,13 @@
       margin-top:3px;
     }
 
+    .small-red {
+      min-height:38px;
+      padding:8px 10px;
+      background:var(--red);
+      font-size:13px;
+    }
+
     .pill {
       display:inline-block;
       padding:3px 8px;
@@ -282,23 +345,16 @@
       margin-top:4px;
     }
 
-    .candidate-box {
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px;
+    details {
       margin-top:8px;
     }
 
-    .candidate {
-      background:#020617;
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:7px 9px;
-      font-size:12px;
-      color:var(--muted);
+    summary {
+      cursor:pointer;
+      color:#cbd5e1;
+      font-weight:800;
+      padding:8px 0;
     }
-
-    .candidate strong { color:var(--text); }
 
     .ocr-result {
       background:#020617;
@@ -309,33 +365,36 @@
       font-size:13px;
       white-space:pre-wrap;
       color:var(--muted);
+      max-height:180px;
+      overflow:auto;
     }
 
-    .danger-zone { border-color:rgba(220,38,38,.7); }
+    .danger-zone {
+      border-color:rgba(220,38,38,.7);
+    }
   </style>
 </head>
 
 <body>
   <header>
     <h1>Code128 + OCR読取</h1>
-    <p>白枠=バーコード / 緑枠=成功 / 黄枠=OCR・読取不可</p>
+    <p>上半分固定 / 枠タップOCR / 6秒でOCR案内</p>
   </header>
 
   <main>
-    <div class="panel">
+    <div class="camera-panel">
       <div id="scanner">
+        <div id="cameraStatus" class="camera-status">
+          現在：バーコード読取モード<br>
+          白枠にCode128を合わせてください。
+        </div>
         <div id="guide" class="guide"></div>
         <div id="guideLine" class="guide-line"></div>
-      </div>
-
-      <div id="modeMessage" class="mode-message">
-        現在：バーコード読取モード  
-        P/N・S/N・QTYのCode128を白枠に合わせてください。読めたら緑枠になります。
+        <button id="shutterBtn" class="shutter" type="button">OCR</button>
       </div>
 
       <div id="timeoutPanel" class="timeout-panel">
-        読み取りできませんでした。長いS/N・反射・ピントずれの可能性があります。  
-        OCRモードに切り替えるか、もう一度バーコードで試してください。
+        6秒間読み取り成功がありません。長いS/N・反射・ピントずれの場合はOCRへ切り替えてください。
         <div class="row" style="margin-top:8px;">
           <button class="btn-orange btn-wide" id="timeoutOcrBtn">OCRモードへ</button>
           <button class="btn-blue btn-wide" id="timeoutRetryBtn">バーコード再試行</button>
@@ -348,28 +407,36 @@
 
     <div class="panel">
       <div class="row">
-        <button class="btn-blue btn-wide" id="startBtn">バーコード読取開始</button>
-        <button class="btn-red btn-wide" id="stopBtn">停止</button>
+        <button class="btn-blue btn-wide" id="startBtn">バーコード開始</button>
         <button class="btn-orange btn-wide" id="ocrModeBtn">OCRモード</button>
+        <button class="btn-red btn-wide" id="stopBtn">停止</button>
       </div>
       <p class="hint">
-        10秒読めない場合はOCR切替案内を表示します。
+        OCRモードでは、P/N・S/Nの印字文字を黄枠に入れて、枠内タップまたはOCRボタンで撮影します。
       </p>
     </div>
 
     <div class="panel">
-      <div class="label">OCR撮影</div>
-      <div class="row">
-        <button class="btn-green btn-wide" id="ocrShotBtn">シャッターOCR</button>
+      <div class="compact-grid">
+        <div>
+          <div class="label">現在のP/N</div>
+          <div class="value-box" id="pnValue">未設定</div>
+        </div>
+        <div>
+          <div class="label">数量</div>
+          <div class="value-box" id="qtyValue">未設定</div>
+        </div>
       </div>
-      <p class="hint">
-        OCRモードでは、バーコードではなくP/N・S/Nの印字文字を黄色枠内に入れて「シャッターOCR」を押してください。
-      </p>
-      <div class="ocr-result" id="ocrResult">OCR結果：未実行</div>
+
+      <div style="height:8px;"></div>
+
+      <div class="label">最後に確定した値</div>
+      <div class="last" id="lastValue">未読み取り</div>
+      <p class="hint" id="lastJudgement">判定待ち</p>
     </div>
 
     <div class="panel">
-      <div class="grid3">
+      <div class="summary-grid">
         <div class="metric">
           <div class="num" id="snCountValue">0</div>
           <div class="label">S/N件数</div>
@@ -383,30 +450,13 @@
           <div class="label">検出回数</div>
         </div>
       </div>
-      <div class="candidate-box" id="candidateBox"></div>
-    </div>
-
-    <div class="panel">
-      <div class="label">現在のP/N</div>
-      <div class="value-box" id="pnValue">未設定</div>
-
-      <div style="height:10px;"></div>
-
-      <div class="label">数量</div>
-      <div class="value-box" id="qtyValue">未設定</div>
-    </div>
-
-    <div class="panel">
-      <div class="label">最後に確定した値</div>
-      <div class="last" id="lastValue">未読み取り</div>
-      <p class="hint" id="lastJudgement">判定待ち</p>
     </div>
 
     <div class="panel">
       <div class="label">手入力・修正入力</div>
       <input id="manualInput" type="text" placeholder="P0200-29600 / S90001731420924C037 / Q1 など" autocomplete="off" autocapitalize="characters" />
       <div class="row" style="margin-top:8px;">
-        <button class="btn-green btn-wide" id="manualAddBtn">手入力を判定追加</button>
+        <button class="btn-green btn-wide" id="manualAddBtn">判定追加</button>
         <button class="btn-orange btn-wide" id="undoBtn">最後のS/Nを戻す</button>
       </div>
     </div>
@@ -416,21 +466,28 @@
       <div class="sn-list" id="snList"></div>
     </div>
 
-    <div class="panel">
-      <div class="label">除外・参考データ</div>
-      <div id="otherList"></div>
-    </div>
+    <details class="panel">
+      <summary>OCR結果・貼り付け解析・出力</summary>
 
-    <div class="panel">
+      <div class="label">OCR結果</div>
+      <div class="ocr-result" id="ocrResult">OCR結果：未実行</div>
+
+      <div style="height:10px;"></div>
+
       <div class="label">一括貼り付け解析</div>
       <textarea id="bulkInput" placeholder="ICONIT等の読み取り結果を貼り付けて解析できます"></textarea>
       <div class="row" style="margin-top:8px;">
         <button class="btn-purple btn-wide" id="parseBulkBtn">貼り付け内容を解析</button>
         <button class="btn-red btn-wide" id="clearBulkBtn">貼り付け欄クリア</button>
       </div>
-    </div>
 
-    <div class="panel">
+      <div style="height:10px;"></div>
+
+      <div class="label">除外・参考データ</div>
+      <div id="otherList"></div>
+
+      <div style="height:10px;"></div>
+
       <div class="label">Forms用出力</div>
       <div class="row">
         <button class="btn-blue btn-wide" id="makeOutputBtn">出力作成</button>
@@ -438,12 +495,10 @@
         <button class="btn-blue btn-wide" id="downloadCsvBtn">CSV保存</button>
       </div>
       <textarea id="outputText" placeholder="ここにForms貼り付け用データが表示されます"></textarea>
-    </div>
+    </details>
 
     <div class="panel danger-zone">
-      <div class="row">
-        <button class="btn-red btn-wide" id="clearAllBtn">全クリア</button>
-      </div>
+      <button class="btn-red btn-wide" id="clearAllBtn">全クリア</button>
     </div>
   </main>
 
@@ -451,7 +506,8 @@
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const ocrModeBtn = document.getElementById("ocrModeBtn");
-    const ocrShotBtn = document.getElementById("ocrShotBtn");
+    const shutterBtn = document.getElementById("shutterBtn");
+    const scanner = document.getElementById("scanner");
 
     const timeoutPanel = document.getElementById("timeoutPanel");
     const timeoutOcrBtn = document.getElementById("timeoutOcrBtn");
@@ -459,7 +515,7 @@
 
     const guide = document.getElementById("guide");
     const guideLine = document.getElementById("guideLine");
-    const modeMessage = document.getElementById("modeMessage");
+    const cameraStatus = document.getElementById("cameraStatus");
     const libraryStatus = document.getElementById("libraryStatus");
     const statusEl = document.getElementById("status");
     const ocrResult = document.getElementById("ocrResult");
@@ -467,7 +523,6 @@
     const snCountValue = document.getElementById("snCountValue");
     const dupValue = document.getElementById("dupValue");
     const readValue = document.getElementById("readValue");
-    const candidateBox = document.getElementById("candidateBox");
 
     const pnValue = document.getElementById("pnValue");
     const qtyValue = document.getElementById("qtyValue");
@@ -503,7 +558,7 @@
     let candidates = {};
 
     const CONFIRM_COUNT = 2;
-    const READ_TIMEOUT_MS = 10000;
+    const READ_TIMEOUT_MS = 6000;
 
     let lastSuccessAt = 0;
     let timeoutTimer = null;
@@ -513,6 +568,10 @@
       statusEl.textContent = msg;
     }
 
+    function setCameraText(html) {
+      cameraStatus.innerHTML = html;
+    }
+
     function setFrame(mode) {
       guide.classList.remove("success", "ocr", "warn");
       guideLine.classList.remove("success", "ocr", "warn");
@@ -520,28 +579,31 @@
       if (mode === "success") {
         guide.classList.add("success");
         guideLine.classList.add("success");
+        setCameraText("読取成功<br>次のバーコードへ進めます。");
         setTimeout(() => {
           if (currentMode === "barcode") setFrame("normal");
           if (currentMode === "ocr") setFrame("ocr");
         }, 650);
+        return;
       }
 
       if (mode === "ocr") {
         guide.classList.add("ocr");
         guideLine.classList.add("ocr");
-        modeMessage.textContent =
-          "現在：OCRモード\nP/N・S/Nの印字文字を黄色枠内に入れて、シャッターOCRを押してください。";
+        shutterBtn.classList.add("show");
+        setCameraText("現在：OCRモード<br>P/N・S/Nの印字文字を黄枠へ。枠タップでOCR。");
+        return;
       }
 
       if (mode === "warn") {
         guide.classList.add("warn");
         guideLine.classList.add("warn");
+        setCameraText("読取不可<br>OCRモードへ切替できます。");
+        return;
       }
 
-      if (mode === "normal") {
-        modeMessage.textContent =
-          "現在：バーコード読取モード\nP/N・S/N・QTYのCode128を白枠に合わせてください。読めたら緑枠になります。";
-      }
+      shutterBtn.classList.remove("show");
+      setCameraText("現在：バーコード読取モード<br>白枠にCode128全体を水平に入れてください。");
     }
 
     function showTimeoutPanel() {
@@ -552,7 +614,7 @@
       timeoutShown = true;
       timeoutPanel.classList.add("show");
       setFrame("warn");
-      setStatus("10秒間読み取り成功がありません。OCRモードへの切替を推奨します。");
+      setStatus("6秒間読み取り成功がありません。OCRモードへの切替を推奨します。");
     }
 
     function hideTimeoutPanel() {
@@ -572,10 +634,7 @@
 
       timeoutTimer = setInterval(() => {
         if (!running || currentMode !== "barcode") return;
-        const elapsed = Date.now() - lastSuccessAt;
-        if (elapsed >= READ_TIMEOUT_MS) {
-          showTimeoutPanel();
-        }
+        if (Date.now() - lastSuccessAt >= READ_TIMEOUT_MS) showTimeoutPanel();
       }, 1000);
     }
 
@@ -590,7 +649,7 @@
       currentMode = "ocr";
       hideTimeoutPanel();
       setFrame("ocr");
-      setStatus("OCRモード：印字文字のP/N・S/Nを黄色枠内に入れてシャッターOCRを押してください。");
+      setStatus("OCRモード：印字文字のP/N・S/Nを黄枠内に入れて、枠タップまたはOCRボタンを押してください。");
     }
 
     function switchToBarcodeMode() {
@@ -661,19 +720,6 @@
       try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e) {}
     }
 
-    function renderCandidates() {
-      candidateBox.innerHTML = "";
-      Object.entries(candidates)
-        .sort((a,b) => b[1]-a[1])
-        .slice(0,5)
-        .forEach(([key,count]) => {
-          const div = document.createElement("div");
-          div.className = "candidate";
-          div.innerHTML = `<strong>${key}</strong>：${count}/${CONFIRM_COUNT}`;
-          candidateBox.appendChild(div);
-        });
-    }
-
     function render() {
       snCountValue.textContent = serials.length;
       dupValue.textContent = dupCount;
@@ -709,7 +755,7 @@
           left.appendChild(meta);
 
           const del = document.createElement("button");
-          del.className = "btn-red";
+          del.className = "small-red";
           del.textContent = "削除";
           del.onclick = () => {
             serials.splice(originalIndex,1);
@@ -736,8 +782,6 @@
           otherList.appendChild(span);
         });
       }
-
-      renderCandidates();
     }
 
     function addSN(value, source) {
@@ -818,7 +862,7 @@
       detectCount++;
       candidates[code] = (candidates[code] || 0) + 1;
 
-      if (candidates[code] >= CONFIRM_COUNT) {
+      if (candidates[code] >= 2) {
         candidates = {};
         judgeAndAdd(code, "BARCODE");
       }
@@ -849,17 +893,17 @@
       Quagga.init({
         inputStream: {
           type:"LiveStream",
-          target:document.querySelector("#scanner"),
+          target:scanner,
           constraints:{
             facingMode:"environment",
             width:{ ideal:1920 },
             height:{ ideal:1080 }
           },
           area:{
-            top:"34%",
+            top:"28%",
             right:"0%",
             left:"0%",
-            bottom:"34%"
+            bottom:"42%"
           }
         },
         locator:{
@@ -901,6 +945,7 @@
         running = false;
         stopReadTimeoutWatcher();
         hideTimeoutPanel();
+        shutterBtn.classList.remove("show");
         setStatus("停止しました。");
       } catch(e) {
         setStatus("停止エラー：" + e.message);
@@ -926,12 +971,20 @@
           return;
         }
 
+        const sourceW = video.videoWidth || video.clientWidth;
+        const sourceH = video.videoHeight || video.clientHeight;
+
+        const cropX = Math.floor(sourceW * 0.04);
+        const cropY = Math.floor(sourceH * 0.25);
+        const cropW = Math.floor(sourceW * 0.92);
+        const cropH = Math.floor(sourceH * 0.42);
+
         const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth || video.clientWidth;
-        canvas.height = video.videoHeight || video.clientHeight;
+        canvas.width = cropW;
+        canvas.height = cropH;
 
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
 
         canvas.toBlob(blob => {
           if (!blob) {
@@ -939,7 +992,7 @@
             return;
           }
           resolve(blob);
-        }, "image/jpeg", 0.95);
+        }, "image/jpeg", 0.96);
       });
     }
 
@@ -948,8 +1001,7 @@
       const normalized = raw
         .replace(/[　]/g," ")
         .replace(/\r/g,"\n")
-        .replace(/[：]/g,":")
-        .replace(/O/g, "0");
+        .replace(/[：]/g,":");
 
       let pn = "";
       let sn = "";
@@ -999,13 +1051,8 @@
           `S/N: ${extracted.sn || "未検出"}\n\n` +
           "OCR全文:\n" + extracted.raw;
 
-        if (extracted.pn) {
-          judgeAndAdd("P" + extracted.pn, "OCR");
-        }
-
-        if (extracted.sn) {
-          judgeAndAdd("S" + extracted.sn, "OCR");
-        }
+        if (extracted.pn) judgeAndAdd("P" + extracted.pn, "OCR");
+        if (extracted.sn) judgeAndAdd("S" + extracted.sn, "OCR");
 
         if (!extracted.pn && !extracted.sn) {
           alert("P/N・S/NをOCRで検出できませんでした。位置を合わせ直すか手入力してください。");
@@ -1100,7 +1147,7 @@
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `code128_ocr_timer_${y}${m}${day}_${hh}${mm}.csv`;
+      a.download = `code128_ocr_layout_${y}${m}${day}_${hh}${mm}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1133,12 +1180,14 @@
     stopBtn.addEventListener("click", stopQuagga);
 
     ocrModeBtn.addEventListener("click", switchToOcrMode);
-    ocrShotBtn.addEventListener("click", runOcrFromCurrentFrame);
+    shutterBtn.addEventListener("click", runOcrFromCurrentFrame);
+
+    scanner.addEventListener("click", () => {
+      if (currentMode === "ocr") runOcrFromCurrentFrame();
+    });
 
     timeoutOcrBtn.addEventListener("click", switchToOcrMode);
-    timeoutRetryBtn.addEventListener("click", () => {
-      switchToBarcodeMode();
-    });
+    timeoutRetryBtn.addEventListener("click", switchToBarcodeMode);
 
     manualAddBtn.addEventListener("click", addManual);
     undoBtn.addEventListener("click", undoLast);
