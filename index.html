@@ -3,298 +3,313 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Code128 Enhanced Reader Photo</title>
+  <title>Code128 Max Reader</title>
 
+  <!-- 1Dバーコード向け：Quagga2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2/dist/quagga.min.js"></script>
+
+  <!-- 写真/貼り付け補助用：html5-qrcode -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     :root {
-      --bg: #0f172a;
-      --head: #020617;
-      --panel: #111827;
-      --panel2: #1f2937;
-      --text: #f9fafb;
-      --muted: #9ca3af;
-      --border: #374151;
-      --blue: #2563eb;
-      --green: #16a34a;
-      --red: #dc2626;
-      --yellow: #facc15;
-      --orange: #f97316;
-      --purple: #7c3aed;
+      --bg:#0f172a; --head:#020617; --panel:#111827; --panel2:#1f2937;
+      --text:#f9fafb; --muted:#9ca3af; --border:#374151;
+      --blue:#2563eb; --green:#16a34a; --red:#dc2626; --orange:#f97316;
+      --purple:#7c3aed; --yellow:#facc15;
     }
 
     * { box-sizing: border-box; }
 
     body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     }
 
     header {
-      background: var(--head);
-      border-bottom: 1px solid var(--border);
-      padding: 12px;
-      text-align: center;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      background:var(--head);
+      border-bottom:1px solid var(--border);
+      padding:12px;
+      text-align:center;
+      position:sticky;
+      top:0;
+      z-index:10;
     }
 
-    header h1 {
-      margin: 0;
-      font-size: 19px;
-    }
-
-    header p {
-      margin: 5px 0 0;
-      font-size: 12px;
-      color: var(--muted);
-    }
+    header h1 { margin:0; font-size:19px; }
+    header p { margin:5px 0 0; font-size:12px; color:var(--muted); }
 
     main {
-      padding: 10px;
-      max-width: 900px;
-      margin: 0 auto;
+      padding:10px;
+      max-width:920px;
+      margin:0 auto;
     }
 
     .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 12px;
-      margin-top: 10px;
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:12px;
+      margin-top:10px;
     }
 
-    #reader {
-      width: 100%;
-      min-height: 330px;
-      background: #000;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      position: relative;
+    #scanner {
+      width:100%;
+      min-height:340px;
+      background:#000;
+      border:1px solid var(--border);
+      border-radius:16px;
+      overflow:hidden;
+      position:relative;
     }
 
-    #reader video {
-      width: 100% !important;
-      border-radius: 16px;
+    #scanner video, #scanner canvas {
+      width:100% !important;
+      max-width:100% !important;
+      border-radius:16px;
     }
 
-    #imageReader {
-      width: 100%;
-      min-height: 10px;
-      overflow: hidden;
-      display: none;
+    .scan-guide {
+      position:absolute;
+      left:2%;
+      right:2%;
+      top:42%;
+      height:14%;
+      border:3px solid var(--yellow);
+      border-radius:12px;
+      pointer-events:none;
+      box-shadow:0 0 0 9999px rgba(0,0,0,0.22);
+      z-index:3;
     }
+
+    .scan-line {
+      position:absolute;
+      left:4%;
+      right:4%;
+      top:49%;
+      height:2px;
+      background:var(--yellow);
+      pointer-events:none;
+      z-index:4;
+    }
+
+    .scan-label {
+      position:absolute;
+      left:0;
+      right:0;
+      top:calc(42% - 34px);
+      text-align:center;
+      color:var(--yellow);
+      font-weight:900;
+      font-size:14px;
+      text-shadow:0 2px 4px #000;
+      z-index:4;
+    }
+
+    #imageReader { display:none; }
 
     .row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
     }
 
     button {
-      appearance: none;
-      border: 0;
-      border-radius: 12px;
-      padding: 12px 14px;
-      min-height: 48px;
-      color: white;
-      background: var(--panel2);
-      font-size: 15px;
-      font-weight: 800;
+      appearance:none;
+      border:0;
+      border-radius:12px;
+      padding:12px 14px;
+      min-height:48px;
+      color:white;
+      background:var(--panel2);
+      font-size:15px;
+      font-weight:800;
     }
 
-    button:active { transform: scale(0.98); }
-    button:disabled { opacity: 0.45; }
+    button:active { transform:scale(0.98); }
+    button:disabled { opacity:.45; }
 
-    .btn-wide { flex: 1 1 135px; }
-    .btn-blue { background: var(--blue); }
-    .btn-green { background: var(--green); }
-    .btn-red { background: var(--red); }
-    .btn-orange { background: var(--orange); }
-    .btn-purple { background: var(--purple); }
-
-    .btn-small {
-      font-size: 13px;
-      min-height: 38px;
-      padding: 8px 10px;
-      border-radius: 10px;
-    }
+    .btn-wide { flex:1 1 135px; }
+    .btn-blue { background:var(--blue); }
+    .btn-green { background:var(--green); }
+    .btn-red { background:var(--red); }
+    .btn-orange { background:var(--orange); }
+    .btn-purple { background:var(--purple); }
 
     select, input, textarea {
-      width: 100%;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #020617;
-      color: var(--text);
-      padding: 12px;
-      font-size: 16px;
+      width:100%;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:#020617;
+      color:var(--text);
+      padding:12px;
+      font-size:16px;
     }
 
     textarea {
-      min-height: 150px;
-      font-size: 13px;
-      line-height: 1.45;
+      min-height:150px;
+      font-size:13px;
+      line-height:1.45;
     }
 
     .status {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-      margin: 8px 0 0;
-      white-space: pre-wrap;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+      margin:8px 0 0;
+      white-space:pre-wrap;
     }
 
-    .ok { color: #86efac; font-weight: 800; }
-    .ng { color: #fca5a5; font-weight: 800; }
+    .ok { color:#86efac; font-weight:800; }
+    .ng { color:#fca5a5; font-weight:800; }
 
     .grid3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
     }
 
     .metric {
-      background: #020617;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 10px;
-      text-align: center;
+      background:#020617;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:10px;
+      text-align:center;
     }
 
     .metric .num {
-      font-size: 26px;
-      font-weight: 900;
-      line-height: 1.1;
+      font-size:26px;
+      font-weight:900;
+      line-height:1.1;
     }
 
     .metric .label {
-      color: var(--muted);
-      font-size: 12px;
-      margin-top: 4px;
+      color:var(--muted);
+      font-size:12px;
+      margin-top:4px;
     }
 
     .label {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 5px;
+      color:var(--muted);
+      font-size:13px;
+      margin-bottom:5px;
     }
 
-    .value-box {
-      background: #020617;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      font-size: 20px;
-      font-weight: 900;
-      min-height: 50px;
-      word-break: break-all;
+    .value-box, .last {
+      background:#020617;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      font-weight:900;
+      min-height:50px;
+      word-break:break-all;
     }
 
-    .last {
-      background: #020617;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      font-size: 22px;
-      font-weight: 900;
-      min-height: 54px;
-      word-break: break-all;
+    .value-box { font-size:20px; }
+    .last { font-size:22px; min-height:54px; }
+
+    .hint {
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.5;
+      margin:8px 0 0;
     }
 
     .sn-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 8px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-top:8px;
     }
 
     .sn-item {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      align-items: center;
-      background: #020617;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 9px;
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:8px;
+      align-items:center;
+      background:#020617;
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:9px;
     }
 
     .sn-code {
-      font-size: 15px;
-      font-weight: 800;
-      word-break: break-all;
+      font-size:15px;
+      font-weight:800;
+      word-break:break-all;
     }
 
     .sn-meta {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 3px;
-    }
-
-    .hint {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-      margin: 8px 0 0;
-    }
-
-    .danger-zone {
-      border-color: rgba(220, 38, 38, 0.7);
+      font-size:11px;
+      color:var(--muted);
+      margin-top:3px;
     }
 
     .pill {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 999px;
-      background: #020617;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 12px;
-      margin-right: 4px;
-      margin-top: 4px;
+      display:inline-block;
+      padding:3px 8px;
+      border-radius:999px;
+      background:#020617;
+      border:1px solid var(--border);
+      color:var(--muted);
+      font-size:12px;
+      margin-right:4px;
+      margin-top:4px;
     }
 
-    .zoom-line {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      align-items: center;
+    .danger-zone { border-color:rgba(220,38,38,.7); }
+
+    .candidate-box {
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      margin-top:8px;
     }
 
-    input[type="range"] {
-      padding: 0;
-      height: 42px;
+    .candidate {
+      background:#020617;
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:7px 9px;
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .candidate strong {
+      color:var(--text);
     }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>Code128 強化読取テスト</h1>
-    <p>ライブ読取・写真読取・ズーム・ライト・P/S/Q自動振り分け</p>
+    <h1>Code128 限界強化読取</h1>
+    <p>Quagga2 / 2回一致で採用 / P・S・Q自動振り分け</p>
   </header>
 
   <main>
     <div class="panel">
-      <div id="reader"></div>
+      <div id="scanner">
+        <div class="scan-label">Code128を黄色枠に水平・全体表示</div>
+        <div class="scan-guide"></div>
+        <div class="scan-line"></div>
+      </div>
       <div id="imageReader"></div>
       <p class="status" id="libraryStatus">読み取りライブラリ確認中...</p>
-      <p class="status" id="status">カメラ未起動</p>
+      <p class="status" id="status">未起動</p>
     </div>
 
     <div class="panel">
-      <div class="label">カメラ選択</div>
-      <select id="cameraSelect"></select>
-      <div class="row" style="margin-top:8px;">
-        <button class="btn-purple btn-wide" id="refreshCameraBtn">カメラ一覧更新</button>
-        <button class="btn-blue btn-wide" id="startBtn">ライブ開始</button>
+      <div class="label">読み取り操作</div>
+      <div class="row">
+        <button class="btn-blue btn-wide" id="startBtn">高精度ライブ開始</button>
         <button class="btn-red btn-wide" id="stopBtn">停止</button>
       </div>
+      <p class="hint">
+        長いS/Nは、左右端と白余白が切れないようにしてください。精度優先のため、同じ値を2回検出してから採用します。
+      </p>
     </div>
 
     <div class="panel">
@@ -304,25 +319,7 @@
         <button class="btn-green btn-wide" id="photoBtn">写真から読取</button>
       </div>
       <p class="hint">
-        長いS/Nは、バーコード全体と左右の白余白を入れて撮影してください。ライブで読めない場合の救済用です。
-      </p>
-    </div>
-
-    <div class="panel">
-      <div class="label">読取補助</div>
-      <div class="zoom-line">
-        <input id="zoomRange" type="range" min="1" max="4" step="0.1" value="1" disabled />
-        <div class="value-box" style="font-size:16px; min-width:80px; text-align:center;" id="zoomValue">1.0x</div>
-      </div>
-      <div class="row" style="margin-top:8px;">
-        <button class="btn-orange btn-wide" id="zoom1Btn">1.0x</button>
-        <button class="btn-orange btn-wide" id="zoom15Btn">1.5x</button>
-        <button class="btn-orange btn-wide" id="zoom2Btn">2.0x</button>
-        <button class="btn-orange btn-wide" id="zoom3Btn">3.0x</button>
-        <button class="btn-green btn-wide" id="torchBtn">ライトON/OFF</button>
-      </div>
-      <p class="hint" id="capabilityText">
-        カメラ起動後、端末が対応していればズーム・ライトが使えます。
+        ライブで読めない長いS/N用。バーコード全体・左右白余白・水平を意識してください。
       </p>
     </div>
 
@@ -338,9 +335,10 @@
         </div>
         <div class="metric">
           <div class="num" id="readValue">0</div>
-          <div class="label">読取回数</div>
+          <div class="label">検出回数</div>
         </div>
       </div>
+      <div class="candidate-box" id="candidateBox"></div>
     </div>
 
     <div class="panel">
@@ -354,7 +352,7 @@
     </div>
 
     <div class="panel">
-      <div class="label">最後に読んだ値</div>
+      <div class="label">最後に確定した値</div>
       <div class="last" id="lastValue">未読み取り</div>
       <p class="hint" id="lastJudgement">判定待ち</p>
     </div>
@@ -376,14 +374,11 @@
     <div class="panel">
       <div class="label">除外・参考データ</div>
       <div id="otherList"></div>
-      <p class="hint">
-        1T、4L、3Q、2Pなど、S/N一覧には入れない値です。
-      </p>
     </div>
 
     <div class="panel">
       <div class="label">一括貼り付け解析</div>
-      <textarea id="bulkInput" placeholder="アイコニット等の読み取り結果をまとめて貼り付けて解析できます"></textarea>
+      <textarea id="bulkInput" placeholder="ICONIT等の読み取り結果をまとめて貼り付けて解析できます"></textarea>
       <div class="row" style="margin-top:8px;">
         <button class="btn-purple btn-wide" id="parseBulkBtn">貼り付け内容を解析</button>
         <button class="btn-red btn-wide" id="clearBulkBtn">貼り付け欄クリア</button>
@@ -408,28 +403,18 @@
   </main>
 
   <script>
-    const cameraSelect = document.getElementById("cameraSelect");
-    const refreshCameraBtn = document.getElementById("refreshCameraBtn");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
-    const statusEl = document.getElementById("status");
-    const libraryStatus = document.getElementById("libraryStatus");
-
-    const photoInput = document.getElementById("photoInput");
     const photoBtn = document.getElementById("photoBtn");
+    const photoInput = document.getElementById("photoInput");
 
-    const zoomRange = document.getElementById("zoomRange");
-    const zoomValue = document.getElementById("zoomValue");
-    const zoom1Btn = document.getElementById("zoom1Btn");
-    const zoom15Btn = document.getElementById("zoom15Btn");
-    const zoom2Btn = document.getElementById("zoom2Btn");
-    const zoom3Btn = document.getElementById("zoom3Btn");
-    const torchBtn = document.getElementById("torchBtn");
-    const capabilityText = document.getElementById("capabilityText");
+    const libraryStatus = document.getElementById("libraryStatus");
+    const statusEl = document.getElementById("status");
 
     const snCountValue = document.getElementById("snCountValue");
     const dupValue = document.getElementById("dupValue");
     const readValue = document.getElementById("readValue");
+    const candidateBox = document.getElementById("candidateBox");
 
     const pnValue = document.getElementById("pnValue");
     const qtyValue = document.getElementById("qtyValue");
@@ -447,37 +432,43 @@
     const parseBulkBtn = document.getElementById("parseBulkBtn");
     const clearBulkBtn = document.getElementById("clearBulkBtn");
 
+    const outputText = document.getElementById("outputText");
     const makeOutputBtn = document.getElementById("makeOutputBtn");
     const copyOutputBtn = document.getElementById("copyOutputBtn");
     const downloadCsvBtn = document.getElementById("downloadCsvBtn");
-    const outputText = document.getElementById("outputText");
     const clearAllBtn = document.getElementById("clearAllBtn");
 
-    let html5QrCode = null;
+    let running = false;
     let imageQrCode = null;
-    let isRunning = false;
-    let currentTrack = null;
-    let torchOn = false;
 
     let currentPN = "";
     let currentQty = "";
     let serials = [];
     let others = [];
 
-    let readCount = 0;
+    let detectCount = 0;
     let dupCount = 0;
 
-    let lastReadText = "";
-    let lastReadTime = 0;
+    let candidates = {};
+    const CONFIRM_COUNT = 2;
 
-    function setStatus(message) {
-      statusEl.textContent = message;
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function checkLibraries() {
+      const qOk = !!window.Quagga;
+      const hOk = !!window.Html5Qrcode;
+
+      libraryStatus.innerHTML =
+        `Quagga2：${qOk ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}\n` +
+        `html5-qrcode：${hOk ? '<span class="ok">OK</span>' : '<span class="ng">NG</span>'}`;
+
+      return qOk;
     }
 
     function normalizeCode(value) {
-      return String(value || "")
-        .trim()
-        .replace(/[　\s]/g, "");
+      return String(value || "").trim().replace(/[　\s]/g, "");
     }
 
     function cleanToken(value) {
@@ -485,6 +476,16 @@
         .replace(/[\u001d\u001e\u0004]/g, "\n")
         .replace(/[()]/g, "")
         .trim();
+    }
+
+    function splitToTokens(text) {
+      const cleaned = cleanToken(text);
+      return cleaned
+        .split(/[\n\r\t,; ]+/)
+        .map(x => normalizeCode(x))
+        .filter(Boolean)
+        .filter(x => x !== "[)>")
+        .filter(x => x !== "06");
     }
 
     function nowText() {
@@ -498,195 +499,47 @@
       return `${y}/${m}/${day} ${hh}:${mm}:${ss}`;
     }
 
-    function getFormatConfig() {
-      if (window.Html5QrcodeSupportedFormats) {
-        return {
-          formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128]
-        };
-      }
-      return {};
-    }
-
-    function checkLibrary() {
-      if (window.Html5Qrcode) {
-        libraryStatus.innerHTML = '<span class="ok">読み取りライブラリ：OK</span>';
-        return true;
-      }
-
-      libraryStatus.innerHTML = '<span class="ng">読み取りライブラリ：NG</span>\n通信状態を確認して再読み込みしてください。';
-      return false;
-    }
-
     function beep(freq = 880, duration = 90) {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-
         osc.connect(gain);
         gain.connect(ctx.destination);
-
         osc.frequency.value = freq;
         gain.gain.value = 0.08;
-
         osc.start();
-
         setTimeout(() => {
           osc.stop();
           ctx.close();
         }, duration);
-      } catch (e) {}
+      } catch(e) {}
     }
 
     function vibrate(ms = 60) {
       try {
         if (navigator.vibrate) navigator.vibrate(ms);
-      } catch (e) {}
+      } catch(e) {}
     }
 
-    async function refreshCameras() {
-      try {
-        if (!checkLibrary()) return;
+    function renderCandidates() {
+      candidateBox.innerHTML = "";
+      const entries = Object.entries(candidates)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
 
-        cameraSelect.innerHTML = "";
-
-        const cameras = await Html5Qrcode.getCameras();
-
-        if (!cameras || cameras.length === 0) {
-          const opt = document.createElement("option");
-          opt.value = "";
-          opt.textContent = "カメラが見つかりません";
-          cameraSelect.appendChild(opt);
-          setStatus("カメラが見つかりません。");
-          return;
-        }
-
-        cameras.forEach((cam, index) => {
-          const opt = document.createElement("option");
-          opt.value = cam.id;
-          opt.textContent = cam.label || `Camera ${index + 1}`;
-          cameraSelect.appendChild(opt);
-        });
-
-        const backLikeIndex = cameras.findIndex(c =>
-          /back|rear|environment|背面|外側/i.test(c.label || "")
-        );
-
-        if (backLikeIndex >= 0) {
-          cameraSelect.selectedIndex = backLikeIndex;
-        } else if (cameras.length > 1) {
-          cameraSelect.selectedIndex = cameras.length - 1;
-        }
-
-        setStatus(`カメラ一覧を取得しました：${cameras.length}件`);
-      } catch (err) {
-        setStatus("カメラ一覧取得エラー: " + err.message);
-      }
-    }
-
-    function getVideoTrack() {
-      const reader = document.getElementById("reader");
-      const video = reader.querySelector("video");
-      if (!video || !video.srcObject) return null;
-      const tracks = video.srcObject.getVideoTracks();
-      return tracks && tracks.length ? tracks[0] : null;
-    }
-
-    function updateCameraCapabilities() {
-      currentTrack = getVideoTrack();
-
-      if (!currentTrack) {
-        capabilityText.textContent = "カメラトラックを取得できません。";
-        zoomRange.disabled = true;
-        return;
-      }
-
-      const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
-      const settings = currentTrack.getSettings ? currentTrack.getSettings() : {};
-
-      let lines = [];
-
-      if (caps.zoom) {
-        zoomRange.min = caps.zoom.min ?? 1;
-        zoomRange.max = caps.zoom.max ?? 4;
-        zoomRange.step = caps.zoom.step ?? 0.1;
-        zoomRange.value = settings.zoom ?? caps.zoom.min ?? 1;
-        zoomRange.disabled = false;
-        zoomValue.textContent = Number(zoomRange.value).toFixed(1) + "x";
-        lines.push(`ズーム対応：${caps.zoom.min}〜${caps.zoom.max}`);
-      } else {
-        zoomRange.disabled = true;
-        lines.push("ズーム：非対応または取得不可");
-      }
-
-      if (caps.torch) {
-        lines.push("ライト：対応");
-      } else {
-        lines.push("ライト：非対応または取得不可");
-      }
-
-      capabilityText.textContent = lines.join("\n");
-    }
-
-    async function applyZoom(value) {
-      try {
-        currentTrack = getVideoTrack();
-        if (!currentTrack || !currentTrack.applyConstraints) {
-          setStatus("ズーム非対応：カメラトラックを取得できません。");
-          return;
-        }
-
-        const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
-        if (!caps.zoom) {
-          setStatus("この端末/ブラウザではズーム制御に非対応です。");
-          return;
-        }
-
-        let z = Number(value);
-        z = Math.max(caps.zoom.min, Math.min(caps.zoom.max, z));
-
-        await currentTrack.applyConstraints({
-          advanced: [{ zoom: z }]
-        });
-
-        zoomRange.value = z;
-        zoomValue.textContent = z.toFixed(1) + "x";
-        setStatus(`ズーム変更：${z.toFixed(1)}x`);
-      } catch (err) {
-        setStatus("ズーム変更エラー: " + err.message);
-      }
-    }
-
-    async function toggleTorch() {
-      try {
-        currentTrack = getVideoTrack();
-        if (!currentTrack || !currentTrack.applyConstraints) {
-          setStatus("ライト非対応：カメラトラックを取得できません。");
-          return;
-        }
-
-        const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
-        if (!caps.torch) {
-          setStatus("この端末/ブラウザではライト制御に非対応です。");
-          return;
-        }
-
-        torchOn = !torchOn;
-
-        await currentTrack.applyConstraints({
-          advanced: [{ torch: torchOn }]
-        });
-
-        setStatus(torchOn ? "ライトON" : "ライトOFF");
-      } catch (err) {
-        setStatus("ライト切替エラー: " + err.message);
-      }
+      entries.forEach(([key, count]) => {
+        const div = document.createElement("div");
+        div.className = "candidate";
+        div.innerHTML = `<strong>${key}</strong>：${count}/${CONFIRM_COUNT}`;
+        candidateBox.appendChild(div);
+      });
     }
 
     function render() {
       snCountValue.textContent = serials.length;
       dupValue.textContent = dupCount;
-      readValue.textContent = readCount;
+      readValue.textContent = detectCount;
 
       pnValue.textContent = currentPN || "未設定";
       qtyValue.textContent = currentQty || "未設定";
@@ -720,13 +573,12 @@
           left.appendChild(meta);
 
           const del = document.createElement("button");
-          del.className = "btn-red btn-small";
+          del.className = "btn-red";
           del.textContent = "削除";
           del.onclick = () => {
             serials.splice(originalIndex, 1);
             render();
             makeOutput();
-            setStatus("S/Nを1件削除しました。");
           };
 
           row.appendChild(left);
@@ -748,6 +600,8 @@
           otherList.appendChild(span);
         });
       }
+
+      renderCandidates();
     }
 
     function addSN(value, source) {
@@ -765,12 +619,8 @@
         return;
       }
 
-      serials.push({
-        value: sn,
-        source,
-        time: nowText()
-      });
-
+      serials.push({ value: sn, source, time: nowText() });
+      lastValue.textContent = sn;
       lastJudgement.textContent = `S/Nとして追加：${sn}`;
       beep(940, 80);
       vibrate(50);
@@ -781,11 +631,8 @@
     function addOther(value) {
       const v = normalizeCode(value);
       if (!v) return;
-
       others.push(v);
-      if (others.length > 150) {
-        others = others.slice(-150);
-      }
+      if (others.length > 150) others = others.slice(-150);
     }
 
     function judgeAndAdd(rawValue, source) {
@@ -798,15 +645,13 @@
         currentPN = value.substring(1);
         lastJudgement.textContent = `P/Nとして設定：${currentPN}`;
         beep(700, 80);
-        vibrate(40);
         render();
         makeOutput();
         return;
       }
 
       if (/^S.+/i.test(value)) {
-        const sn = value.substring(1);
-        addSN(sn, source);
+        addSN(value.substring(1), source);
         return;
       }
 
@@ -814,7 +659,6 @@
         currentQty = value.substring(1);
         lastJudgement.textContent = `数量として設定：${currentQty}`;
         beep(620, 80);
-        vibrate(40);
         render();
         makeOutput();
         return;
@@ -825,15 +669,99 @@
       render();
     }
 
-    function splitToTokens(text) {
-      const cleaned = cleanToken(text);
+    function confirmCandidate(value) {
+      const code = normalizeCode(value);
+      if (!code) return;
 
-      return cleaned
-        .split(/[\n\r\t,; ]+/)
-        .map(x => normalizeCode(x))
-        .filter(Boolean)
-        .filter(x => x !== "[)>")
-        .filter(x => x !== "06");
+      detectCount += 1;
+
+      candidates[code] = (candidates[code] || 0) + 1;
+
+      if (candidates[code] >= CONFIRM_COUNT) {
+        candidates = {};
+        judgeAndAdd(code, "QUAGGA");
+      }
+
+      render();
+    }
+
+    function handleQuaggaDetection(result) {
+      if (!result || !result.codeResult || !result.codeResult.code) return;
+
+      const code = normalizeCode(result.codeResult.code);
+      if (!code) return;
+
+      confirmCandidate(code);
+    }
+
+    function startQuagga() {
+      if (!checkLibraries()) {
+        alert("Quagga2が読み込めていません。通信状態を確認して再読み込みしてください。");
+        return;
+      }
+
+      if (running) {
+        setStatus("すでに起動中です。");
+        return;
+      }
+
+      const scanner = document.querySelector("#scanner");
+
+      Quagga.init({
+        inputStream: {
+          type: "LiveStream",
+          target: scanner,
+          constraints: {
+            facingMode: "environment",
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          area: {
+            top: "35%",
+            right: "0%",
+            left: "0%",
+            bottom: "35%"
+          }
+        },
+        locator: {
+          patchSize: "x-large",
+          halfSample: false
+        },
+        numOfWorkers: navigator.hardwareConcurrency ? Math.min(4, navigator.hardwareConcurrency) : 2,
+        frequency: 12,
+        decoder: {
+          readers: ["code_128_reader"],
+          multiple: false
+        },
+        locate: true
+      }, function(err) {
+        if (err) {
+          console.error(err);
+          setStatus("Quagga起動エラー: " + err.message);
+          alert("起動できませんでした: " + err.message);
+          return;
+        }
+
+        Quagga.start();
+        running = true;
+        setStatus("高精度ライブ読取中：Code128を黄色枠に水平・全体表示してください。");
+      });
+
+      Quagga.offDetected(handleQuaggaDetection);
+      Quagga.onDetected(handleQuaggaDetection);
+    }
+
+    function stopQuagga() {
+      try {
+        if (running) {
+          Quagga.offDetected(handleQuaggaDetection);
+          Quagga.stop();
+        }
+        running = false;
+        setStatus("停止しました。");
+      } catch(e) {
+        setStatus("停止エラー: " + e.message);
+      }
     }
 
     function parseBulkText() {
@@ -845,160 +773,48 @@
         return;
       }
 
-      tokens.forEach(token => {
-        judgeAndAdd(token, "PASTE");
-      });
-
-      setStatus(`貼り付け解析完了：${tokens.length}個の候補を処理しました。`);
-    }
-
-    function processDecodedText(decodedText, source) {
-      const text = normalizeCode(decodedText);
-      const now = Date.now();
-
-      if (!text) return;
-
-      if (source === "SCAN") {
-        if (text === lastReadText && now - lastReadTime < 1000) return;
-        lastReadText = text;
-        lastReadTime = now;
-      }
-
-      readCount += 1;
-
-      const tokens = splitToTokens(decodedText);
-
-      if (tokens.length > 1) {
-        tokens.forEach(token => judgeAndAdd(token, source));
-      } else {
-        judgeAndAdd(text, source);
-      }
-
-      render();
-    }
-
-    function onScanSuccess(decodedText, decodedResult) {
-      processDecodedText(decodedText, "SCAN");
-    }
-
-    function onScanFailure(error) {}
-
-    async function startCamera() {
-      try {
-        if (!checkLibrary()) {
-          alert("読み取りライブラリを読み込めませんでした。再読み込みしてください。");
-          return;
-        }
-
-        if (isRunning) {
-          setStatus("すでにカメラ起動中です。");
-          return;
-        }
-
-        html5QrCode = new Html5Qrcode("reader", getFormatConfig());
-
-        const config = {
-          fps: 15,
-          qrbox: function(viewfinderWidth, viewfinderHeight) {
-            const width = Math.floor(viewfinderWidth * 0.96);
-            const height = Math.floor(viewfinderHeight * 0.16);
-            return { width, height };
-          },
-          aspectRatio: 1.777778,
-          disableFlip: true,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
-          }
-        };
-
-        const selectedCameraId = cameraSelect.value;
-
-        setStatus("カメラ起動中...");
-
-        if (selectedCameraId) {
-          await html5QrCode.start(selectedCameraId, config, onScanSuccess, onScanFailure);
-        } else {
-          await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
-        }
-
-        isRunning = true;
-        setStatus("ライブ読取中：Code128バーコードを横長枠に合わせてください。");
-
-        setTimeout(updateCameraCapabilities, 800);
-
-      } catch (err) {
-        console.error(err);
-        setStatus("カメラ起動エラー: " + err.message);
-        alert(
-          "カメラを起動できませんでした。\n\n" +
-          "確認してください：\n" +
-          "1. カメラ許可をOKにした\n" +
-          "2. httpsのURLで開いている\n" +
-          "3. SafariまたはChromeで開いている\n" +
-          "4. 他アプリがカメラを使用していない\n\n" +
-          "詳細: " + err.message
-        );
-      }
-    }
-
-    async function stopCamera() {
-      try {
-        if (html5QrCode && isRunning) {
-          await html5QrCode.stop();
-          await html5QrCode.clear();
-        }
-
-        html5QrCode = null;
-        isRunning = false;
-        currentTrack = null;
-        torchOn = false;
-        zoomRange.disabled = true;
-
-        setStatus("カメラ停止中");
-
-      } catch (err) {
-        setStatus("停止処理エラー: " + err.message);
-      }
+      tokens.forEach(token => judgeAndAdd(token, "PASTE"));
+      setStatus(`貼り付け解析完了：${tokens.length}個を処理しました。`);
     }
 
     async function scanPhotoFile(file) {
       try {
         if (!file) return;
 
-        if (!checkLibrary()) {
-          alert("読み取りライブラリを読み込めませんでした。再読み込みしてください。");
+        if (!window.Html5Qrcode) {
+          alert("写真読取ライブラリが読み込めていません。");
           return;
         }
 
         setStatus("写真を解析中...");
 
         if (imageQrCode) {
-          try {
-            await imageQrCode.clear();
-          } catch (e) {}
+          try { await imageQrCode.clear(); } catch(e) {}
         }
 
-        imageQrCode = new Html5Qrcode("imageReader", getFormatConfig());
+        imageQrCode = new Html5Qrcode("imageReader");
 
         const decodedText = await imageQrCode.scanFile(file, false);
+        const tokens = splitToTokens(decodedText);
 
-        processDecodedText(decodedText, "PHOTO");
+        if (tokens.length > 1) {
+          tokens.forEach(token => judgeAndAdd(token, "PHOTO"));
+        } else {
+          judgeAndAdd(decodedText, "PHOTO");
+        }
 
         setStatus("写真から読取成功。");
 
-        try {
-          await imageQrCode.clear();
-        } catch (e) {}
+        try { await imageQrCode.clear(); } catch(e) {}
 
-      } catch (err) {
+      } catch(err) {
         console.error(err);
-        setStatus("写真から読取できませんでした: " + err.message);
+        setStatus("写真から読取不可: " + err.message);
         alert(
-          "写真からバーコードを読めませんでした。\n\n" +
-          "撮影のコツ：\n" +
-          "1. S/Nバーコード全体を入れる\n" +
+          "写真から読めませんでした。\n\n" +
+          "1. バーコード全体を入れる\n" +
           "2. 左右の白余白も入れる\n" +
-          "3. 斜めにしない\n" +
+          "3. 水平にする\n" +
           "4. 反射を避ける\n" +
           "5. 近すぎる場合は少し離す"
         );
@@ -1009,7 +825,6 @@
 
     function addManual() {
       const value = normalizeCode(manualInput.value);
-
       if (!value) {
         alert("追加する値を入力してください。");
         return;
@@ -1018,8 +833,6 @@
       judgeAndAdd(value, "MANUAL");
       manualInput.value = "";
       manualInput.focus();
-      render();
-      makeOutput();
     }
 
     function undoLast() {
@@ -1035,14 +848,11 @@
     }
 
     function makeOutput() {
-      const snValues = serials.map(x => x.value);
-
       const lines = [];
       lines.push(`P/N:${currentPN || ""}`);
       lines.push(`QTY:${currentQty || ""}`);
       lines.push("S/N:");
-      lines.push(...snValues);
-
+      serials.forEach(x => lines.push(x.value));
       outputText.value = lines.join("\n");
     }
 
@@ -1057,7 +867,7 @@
       try {
         await navigator.clipboard.writeText(outputText.value);
         setStatus("出力をコピーしました。");
-      } catch (e) {
+      } catch(e) {
         outputText.select();
         document.execCommand("copy");
         setStatus("出力をコピーしました。");
@@ -1085,7 +895,7 @@
       });
 
       const csv = "\uFEFF" + lines.join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
 
       const d = new Date();
@@ -1097,7 +907,7 @@
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `code128_photo_${y}${m}${day}_${hh}${mm}.csv`;
+      a.download = `code128_max_${y}${m}${day}_${hh}${mm}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1107,16 +917,16 @@
     }
 
     function clearAll() {
-      if (!confirm("P/N、数量、S/N一覧、除外データをすべてクリアしますか？")) return;
+      if (!confirm("P/N、数量、S/N一覧、候補、除外データをすべてクリアしますか？")) return;
 
       currentPN = "";
       currentQty = "";
       serials = [];
       others = [];
-      readCount = 0;
+      candidates = {};
+      detectCount = 0;
       dupCount = 0;
-      lastReadText = "";
-      lastReadTime = 0;
+
       lastValue.textContent = "未読み取り";
       lastJudgement.textContent = "判定待ち";
       outputText.value = "";
@@ -1125,25 +935,14 @@
       setStatus("全クリアしました。");
     }
 
-    refreshCameraBtn.addEventListener("click", refreshCameras);
-    startBtn.addEventListener("click", startCamera);
-    stopBtn.addEventListener("click", stopCamera);
+    startBtn.addEventListener("click", startQuagga);
+    stopBtn.addEventListener("click", stopQuagga);
 
-    photoBtn.addEventListener("click", () => {
-      photoInput.click();
-    });
-
+    photoBtn.addEventListener("click", () => photoInput.click());
     photoInput.addEventListener("change", e => {
       const file = e.target.files && e.target.files[0];
       scanPhotoFile(file);
     });
-
-    zoomRange.addEventListener("input", e => applyZoom(e.target.value));
-    zoom1Btn.addEventListener("click", () => applyZoom(1.0));
-    zoom15Btn.addEventListener("click", () => applyZoom(1.5));
-    zoom2Btn.addEventListener("click", () => applyZoom(2.0));
-    zoom3Btn.addEventListener("click", () => applyZoom(3.0));
-    torchBtn.addEventListener("click", toggleTorch);
 
     manualAddBtn.addEventListener("click", addManual);
     undoBtn.addEventListener("click", undoLast);
@@ -1156,18 +955,15 @@
     });
 
     parseBulkBtn.addEventListener("click", parseBulkText);
-    clearBulkBtn.addEventListener("click", () => {
-      bulkInput.value = "";
-    });
+    clearBulkBtn.addEventListener("click", () => bulkInput.value = "");
 
     makeOutputBtn.addEventListener("click", makeOutput);
     copyOutputBtn.addEventListener("click", copyOutput);
     downloadCsvBtn.addEventListener("click", downloadCsv);
     clearAllBtn.addEventListener("click", clearAll);
 
-    window.addEventListener("load", async () => {
-      setTimeout(checkLibrary, 800);
-      setTimeout(refreshCameras, 1200);
+    window.addEventListener("load", () => {
+      setTimeout(checkLibraries, 800);
     });
 
     render();
