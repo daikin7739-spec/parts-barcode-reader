@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Code128 Enhanced Reader</title>
+  <title>Code128 Enhanced Reader Photo</title>
 
   <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -24,9 +24,7 @@
       --purple: #7c3aed;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -85,6 +83,13 @@
       border-radius: 16px;
     }
 
+    #imageReader {
+      width: 100%;
+      min-height: 10px;
+      overflow: hidden;
+      display: none;
+    }
+
     .row {
       display: flex;
       flex-wrap: wrap;
@@ -103,37 +108,15 @@
       font-weight: 800;
     }
 
-    button:active {
-      transform: scale(0.98);
-    }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.45; }
 
-    button:disabled {
-      opacity: 0.45;
-    }
-
-    .btn-wide {
-      flex: 1 1 135px;
-    }
-
-    .btn-blue {
-      background: var(--blue);
-    }
-
-    .btn-green {
-      background: var(--green);
-    }
-
-    .btn-red {
-      background: var(--red);
-    }
-
-    .btn-orange {
-      background: var(--orange);
-    }
-
-    .btn-purple {
-      background: var(--purple);
-    }
+    .btn-wide { flex: 1 1 135px; }
+    .btn-blue { background: var(--blue); }
+    .btn-green { background: var(--green); }
+    .btn-red { background: var(--red); }
+    .btn-orange { background: var(--orange); }
+    .btn-purple { background: var(--purple); }
 
     .btn-small {
       font-size: 13px;
@@ -166,15 +149,8 @@
       white-space: pre-wrap;
     }
 
-    .ok {
-      color: #86efac;
-      font-weight: 800;
-    }
-
-    .ng {
-      color: #fca5a5;
-      font-weight: 800;
-    }
+    .ok { color: #86efac; font-weight: 800; }
+    .ng { color: #fca5a5; font-weight: 800; }
 
     .grid3 {
       display: grid;
@@ -300,12 +276,13 @@
 <body>
   <header>
     <h1>Code128 強化読取テスト</h1>
-    <p>カメラ選択・ズーム・ライト・P/S/Q自動振り分け</p>
+    <p>ライブ読取・写真読取・ズーム・ライト・P/S/Q自動振り分け</p>
   </header>
 
   <main>
     <div class="panel">
       <div id="reader"></div>
+      <div id="imageReader"></div>
       <p class="status" id="libraryStatus">読み取りライブラリ確認中...</p>
       <p class="status" id="status">カメラ未起動</p>
     </div>
@@ -315,11 +292,19 @@
       <select id="cameraSelect"></select>
       <div class="row" style="margin-top:8px;">
         <button class="btn-purple btn-wide" id="refreshCameraBtn">カメラ一覧更新</button>
-        <button class="btn-blue btn-wide" id="startBtn">カメラ開始</button>
+        <button class="btn-blue btn-wide" id="startBtn">ライブ開始</button>
         <button class="btn-red btn-wide" id="stopBtn">停止</button>
       </div>
+    </div>
+
+    <div class="panel">
+      <div class="label">写真から読取</div>
+      <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none;" />
+      <div class="row">
+        <button class="btn-green btn-wide" id="photoBtn">写真から読取</button>
+      </div>
       <p class="hint">
-        複数カメラが出る場合は、読めるカメラを順番に試してください。
+        長いS/Nは、バーコード全体と左右の白余白を入れて撮影してください。ライブで読めない場合の救済用です。
       </p>
     </div>
 
@@ -430,6 +415,9 @@
     const statusEl = document.getElementById("status");
     const libraryStatus = document.getElementById("libraryStatus");
 
+    const photoInput = document.getElementById("photoInput");
+    const photoBtn = document.getElementById("photoBtn");
+
     const zoomRange = document.getElementById("zoomRange");
     const zoomValue = document.getElementById("zoomValue");
     const zoom1Btn = document.getElementById("zoom1Btn");
@@ -466,6 +454,7 @@
     const clearAllBtn = document.getElementById("clearAllBtn");
 
     let html5QrCode = null;
+    let imageQrCode = null;
     let isRunning = false;
     let currentTrack = null;
     let torchOn = false;
@@ -507,6 +496,15 @@
       const mm = String(d.getMinutes()).padStart(2, "0");
       const ss = String(d.getSeconds()).padStart(2, "0");
       return `${y}/${m}/${day} ${hh}:${mm}:${ss}`;
+    }
+
+    function getFormatConfig() {
+      if (window.Html5QrcodeSupportedFormats) {
+        return {
+          formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128]
+        };
+      }
+      return {};
     }
 
     function checkLibrary() {
@@ -854,30 +852,33 @@
       setStatus(`貼り付け解析完了：${tokens.length}個の候補を処理しました。`);
     }
 
-    function onScanSuccess(decodedText, decodedResult) {
+    function processDecodedText(decodedText, source) {
       const text = normalizeCode(decodedText);
       const now = Date.now();
 
       if (!text) return;
 
-      if (text === lastReadText && now - lastReadTime < 1000) {
-        return;
+      if (source === "SCAN") {
+        if (text === lastReadText && now - lastReadTime < 1000) return;
+        lastReadText = text;
+        lastReadTime = now;
       }
-
-      lastReadText = text;
-      lastReadTime = now;
 
       readCount += 1;
 
       const tokens = splitToTokens(decodedText);
 
       if (tokens.length > 1) {
-        tokens.forEach(token => judgeAndAdd(token, "SCAN"));
+        tokens.forEach(token => judgeAndAdd(token, source));
       } else {
-        judgeAndAdd(text, "SCAN");
+        judgeAndAdd(text, source);
       }
 
       render();
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+      processDecodedText(decodedText, "SCAN");
     }
 
     function onScanFailure(error) {}
@@ -894,15 +895,7 @@
           return;
         }
 
-        html5QrCode = new Html5Qrcode("reader");
-
-        let formatsToSupport = undefined;
-
-        if (window.Html5QrcodeSupportedFormats) {
-          formatsToSupport = [
-            Html5QrcodeSupportedFormats.CODE_128
-          ];
-        }
+        html5QrCode = new Html5Qrcode("reader", getFormatConfig());
 
         const config = {
           fps: 15,
@@ -918,32 +911,18 @@
           }
         };
 
-        if (formatsToSupport) {
-          config.formatsToSupport = formatsToSupport;
-        }
-
         const selectedCameraId = cameraSelect.value;
 
         setStatus("カメラ起動中...");
 
         if (selectedCameraId) {
-          await html5QrCode.start(
-            selectedCameraId,
-            config,
-            onScanSuccess,
-            onScanFailure
-          );
+          await html5QrCode.start(selectedCameraId, config, onScanSuccess, onScanFailure);
         } else {
-          await html5QrCode.start(
-            { facingMode: "environment" },
-            config,
-            onScanSuccess,
-            onScanFailure
-          );
+          await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
         }
 
         isRunning = true;
-        setStatus("読み取り中：Code128バーコードを横長枠に合わせてください。");
+        setStatus("ライブ読取中：Code128バーコードを横長枠に合わせてください。");
 
         setTimeout(updateCameraCapabilities, 800);
 
@@ -979,6 +958,52 @@
 
       } catch (err) {
         setStatus("停止処理エラー: " + err.message);
+      }
+    }
+
+    async function scanPhotoFile(file) {
+      try {
+        if (!file) return;
+
+        if (!checkLibrary()) {
+          alert("読み取りライブラリを読み込めませんでした。再読み込みしてください。");
+          return;
+        }
+
+        setStatus("写真を解析中...");
+
+        if (imageQrCode) {
+          try {
+            await imageQrCode.clear();
+          } catch (e) {}
+        }
+
+        imageQrCode = new Html5Qrcode("imageReader", getFormatConfig());
+
+        const decodedText = await imageQrCode.scanFile(file, false);
+
+        processDecodedText(decodedText, "PHOTO");
+
+        setStatus("写真から読取成功。");
+
+        try {
+          await imageQrCode.clear();
+        } catch (e) {}
+
+      } catch (err) {
+        console.error(err);
+        setStatus("写真から読取できませんでした: " + err.message);
+        alert(
+          "写真からバーコードを読めませんでした。\n\n" +
+          "撮影のコツ：\n" +
+          "1. S/Nバーコード全体を入れる\n" +
+          "2. 左右の白余白も入れる\n" +
+          "3. 斜めにしない\n" +
+          "4. 反射を避ける\n" +
+          "5. 近すぎる場合は少し離す"
+        );
+      } finally {
+        photoInput.value = "";
       }
     }
 
@@ -1072,7 +1097,7 @@
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `code128_zoom_${y}${m}${day}_${hh}${mm}.csv`;
+      a.download = `code128_photo_${y}${m}${day}_${hh}${mm}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1103,6 +1128,15 @@
     refreshCameraBtn.addEventListener("click", refreshCameras);
     startBtn.addEventListener("click", startCamera);
     stopBtn.addEventListener("click", stopCamera);
+
+    photoBtn.addEventListener("click", () => {
+      photoInput.click();
+    });
+
+    photoInput.addEventListener("change", e => {
+      const file = e.target.files && e.target.files[0];
+      scanPhotoFile(file);
+    });
 
     zoomRange.addEventListener("input", e => applyZoom(e.target.value));
     zoom1Btn.addEventListener("click", () => applyZoom(1.0));
