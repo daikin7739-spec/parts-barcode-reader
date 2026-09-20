@@ -1,0 +1,37 @@
+name: Publish KMT Mail Intake download
+
+on:
+  push:
+    paths:
+      - ".github/workflows/publish-kmt-mailintake.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download verified installer package
+        env:
+          SOURCE_URL: "https://sdmntprindiasocentral.oaiusercontent.com/files/00000000-dd7c-8211-afea-8211f2c21e4e/raw?se=2026-09-20T04%3A36%3A51Z&sp=r&sv=2026-02-06&sr=b&scid=01a0bd0f-df6e-7397-b26c-15a00602caac&skoid=6980ab1e-b994-4668-84de-ad0444c9d08b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-19T21%3A44%3A57Z&ske=2026-09-20T21%3A44%3A57Z&sks=b&skv=2026-02-06&sig=K38BtmikppLuDm7nmG75Kaf82uR/4/APGnGm756VqhI%3D"
+        run: |
+          curl --fail --location --retry 2 "$SOURCE_URL" --output verified-artifact.zip
+          unzip -j verified-artifact.zip KMT_MailIntake_MainPC_Setup_v1.1.5.zip
+          echo "e107ee8b7fda3242ab51ddeb01339cc43483b33fc9555f9baad3d407b061fc17  KMT_MailIntake_MainPC_Setup_v1.1.5.zip" | sha256sum --check
+
+      - name: Publish public download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="kmt-mail-intake-mainpc-v1.1.5"
+          asset="KMT_MailIntake_MainPC_Setup_v1.1.5.zip"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$asset" --clobber
+          else
+            gh release create "$tag" "$asset" --target "${{ github.sha }}" --title "KMT Mail Intake MainPC v1.1.5" --notes "ログイン不要のメインPC用セットアップZIPです。ソース、設定、メール、保存データは含みません。"
+          fi
