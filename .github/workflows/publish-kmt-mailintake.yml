@@ -18,20 +18,20 @@ jobs:
 
       - name: Download verified installer package
         env:
-          SOURCE_URL: "https://sdmntprindiasocentral.oaiusercontent.com/files/00000000-b0a0-8211-937b-149c624d3be4/raw?se=2026-09-20T05%3A06%3A14Z&sp=r&sv=2026-02-06&sr=b&scid=01a0bd1f-8d45-75fa-ae88-813a1758042e&skoid=6980ab1e-b994-4668-84de-ad0444c9d08b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-20T01%3A29%3A03Z&ske=2026-09-21T01%3A29%3A03Z&sks=b&skv=2026-02-06&sig=rIYVQ5Js8B9vLT%2BjxC7K49MQOYGrhTEch55t1iWsHss%3D"
+          SOURCE_URL: "https://sdmntprindiasocentral.oaiusercontent.com/files/00000000-ea24-8211-a505-bd7ab9ed3a3b/raw?se=2026-09-20T06%3A08%3A02Z&sp=r&sv=2026-02-06&sr=b&scid=01a0bd53-132a-7606-8e5d-c226d5c46b6a&skoid=5e5afa93-cb2e-42ad-a58a-830b5b446f03&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-20T04%3A53%3A57Z&ske=2026-09-21T04%3A53%3A57Z&sks=b&skv=2026-02-06&sig=lpJnuQNN4PtR0TBEiYRtgTX2jqirb/oEbPlEi/RgpZk%3D"
         run: |
           curl --fail --location --retry 2 "$SOURCE_URL" --output verified-artifact.zip
-          unzip -j verified-artifact.zip KMT_MailIntake_MainPC_Setup_v1.1.6.zip
-          echo "6b15c1168f87f5e6316ae59c121b61e40220863d013023f86652404d12dc054b  KMT_MailIntake_MainPC_Setup_v1.1.6.zip" | sha256sum --check
+          unzip -j verified-artifact.zip KMT_MailIntake_MainPC_Setup_v1.1.7.zip
+          echo "dcd1348c51af6c4c2357d4aaf913bfd81e97fcae5b4ecc6c30e6d9782cc6186a  KMT_MailIntake_MainPC_Setup_v1.1.7.zip" | sha256sum --check
 
       - name: Publish public download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="kmt-mail-intake-mainpc-v1.1.6"
-          asset="KMT_MailIntake_MainPC_Setup_v1.1.6.zip"
+          tag="kmt-mail-intake-mainpc-v1.1.7"
+          asset="KMT_MailIntake_MainPC_Setup_v1.1.7.zip"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "$asset" --clobber
           else
-            gh release create "$tag" "$asset" --target "${{ github.sha }}" --title "KMT Mail Intake MainPC v1.1.6" --notes "ログイン不要のメインPC用セットアップZIPです。ソース、設定、メール、保存データは含みません。"
+            gh release create "$tag" "$asset" --target "${{ github.sha }}" --title "KMT Mail Intake MainPC v1.1.7" --notes "ログイン不要のメインPC用セットアップZIPです。ソース、設定、メール、保存データは含みません。"
           fi
