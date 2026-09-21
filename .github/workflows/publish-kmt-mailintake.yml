@@ -18,21 +18,21 @@ jobs:
 
       - name: Download verified installer package
         env:
-          SOURCE_URL: "https://sdmntprindiasocentral.oaiusercontent.com/files/00000000-27bc-8211-914e-8f61659f44af/raw?se=2026-09-21T01%3A59%3A54Z&sp=r&sv=2026-02-06&sr=b&scid=01a0c199-b5eb-7cb9-93c4-7c80c61f623d&skoid=6980ab1e-b994-4668-84de-ad0444c9d08b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-20T18%3A15%3A37Z&ske=2026-09-21T18%3A15%3A37Z&sks=b&skv=2026-02-06&sig=R7PXrKNnGqdBZr0gTQjG6pXhShBnX4tUMXA8aRN2xHs%3D"
+          SOURCE_URL: "https://sdmntprkoreacentral.oaiusercontent.com/files/00000000-452c-8206-8885-558844a71b66/raw?se=2026-09-21T02%3A26%3A50Z&sp=r&sv=2026-02-06&sr=b&scid=01a0c1b4-e3ee-79f8-97a3-fae9513808ba&skoid=6980ab1e-b994-4668-84de-ad0444c9d08b&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-20T04%3A49%3A36Z&ske=2026-09-21T04%3A49%3A36Z&sks=b&skv=2026-02-06&sig=tmrprVZVMSA4ZiLJ/mh8lxS9K7oJX9DoXqsINoTtcxg%3D"
         run: |
           curl --fail --location --retry 2 "$SOURCE_URL" --output verified-artifact.zip
-          echo "8ba1167204a9ec8153db6187c5e33553b59c73dd6d0b2496990b749ef8af3b1a  verified-artifact.zip" | sha256sum --check
-          unzip -j verified-artifact.zip KMT_MailIntake_MainPC_Setup_v1.3.1.zip business-preview.png
-          echo "e3d504ff5774e7b6445e7b1b1262f056c1412c0fe5ab833f65f19c607543463b  KMT_MailIntake_MainPC_Setup_v1.3.1.zip" | sha256sum --check
+          echo "190a6e0ae2c156fa8180e4d7376c3787df7176f9e909436b8e0690b12865fa43  verified-artifact.zip" | sha256sum --check
+          unzip -j verified-artifact.zip KMT_MailIntake_MainPC_Setup_v1.3.2.zip business-preview.png home-preview.png part-preview.png
+          echo "8f0854bf4f54f840677b524f307e18a47ae80e3de002d6b4e1d912c0634d2628  KMT_MailIntake_MainPC_Setup_v1.3.2.zip" | sha256sum --check
 
       - name: Publish public download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="kmt-mail-intake-mainpc-v1.3.1"
-          asset="KMT_MailIntake_MainPC_Setup_v1.3.1.zip"
+          tag="kmt-mail-intake-mainpc-v1.3.2"
+          asset="KMT_MailIntake_MainPC_Setup_v1.3.2.zip"
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" "$asset" business-preview.png --clobber
+            gh release upload "$tag" "$asset" business-preview.png home-preview.png part-preview.png --clobber
           else
-            gh release create "$tag" "$asset" business-preview.png --target "${{ github.sha }}" --title "KMT Mail Intake MainPC v1.3.1 メール一括登録対応" --notes "共通取込基盤と拠点別の取得設定・メンテ照合を分離した版。188件のテストとWindows画面・インストーラー検査に合格。メール一括登録・Windowsパスワード保護・二重登録防止を検証済み。履歴への無人書戻しは未完了です。ブック反映・メールはプレビュー後に実行します。ソース・設定・メール・業務データは含みません。"
+            gh release create "$tag" "$asset" business-preview.png home-preview.png part-preview.png --target "${{ github.sha }}" --title "KMT Mail Intake MainPC v1.3.2 WorkHuB 黒金・登録反映修正版" --notes "共通取込基盤と拠点別の取得設定・メンテ照合を分離した版。189件のテストとWindows画面・インストーラー検査に合格。設定付きインストール・初回起動の自動登録・登録状態表示・画面からの再取込を検証済み。UIを黒金に統一。履歴への無人書戻しは未完了です。ブック反映・メールはプレビュー後に実行します。ソース・設定・メール・業務データは含みません。"
           fi
